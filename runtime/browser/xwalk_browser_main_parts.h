@@ -5,6 +5,7 @@
 #ifndef XWALK_RUNTIME_BROWSER_XWALK_BROWSER_MAIN_PARTS_H_
 #define XWALK_RUNTIME_BROWSER_XWALK_BROWSER_MAIN_PARTS_H_
 
+#include <string>
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
 #include "content/public/browser/browser_main_parts.h"
@@ -64,6 +65,10 @@ class XWalkBrowserMainParts : public content::BrowserMainParts {
   RuntimeContext* runtime_context_;
 #else
   scoped_ptr<RuntimeContext> runtime_context_;
+#endif
+
+#if defined(OS_TIZEN_MOBILE)
+  void HandlePackageInfo(const std::string& id, const std::string& option);
 #endif
 
   // An application wide instance to manage all Runtime instances.
