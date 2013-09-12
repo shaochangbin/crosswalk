@@ -13,6 +13,7 @@ import android.view.ViewGroup;
 import android.webkit.WebSettings;
 import android.widget.FrameLayout;
 
+import org.xwalk.core.client.XWalkDefaultDownloadListener;
 import org.xwalk.core.client.XWalkDefaultWebChromeClient;
 
 public class XWalkView extends FrameLayout {
@@ -64,8 +65,10 @@ public class XWalkView extends FrameLayout {
                         FrameLayout.LayoutParams.MATCH_PARENT,
                         FrameLayout.LayoutParams.MATCH_PARENT));
 
-        // Set default XWalkWebChromeClient.
+        // Set default XWalkWebChromeClient and DownloadListener. The default actions
+        // are provided via the following clients if special actions are not needed.
         setXWalkWebChromeClient(new XWalkDefaultWebChromeClient(context, this));
+        setDownloadListener(new XWalkDefaultDownloadListener(context));
     }
 
     public void loadUrl(String url) {
@@ -137,6 +140,18 @@ public class XWalkView extends FrameLayout {
         mContent.stopLoading();
     }
 
+    public void pauseTimers() {
+        mContent.pauseTimers();
+    }
+
+    public void resumeTimers() {
+        mContent.resumeTimers();
+    }
+
+    public void setDownloadListener(DownloadListener listener) {
+        mContent.setDownloadListener(listener);
+    }
+
     // Enables remote debugging and returns the URL at which the dev tools server is listening
     // for commands.
     public String enableRemoteDebugging() {
@@ -177,6 +192,10 @@ public class XWalkView extends FrameLayout {
 
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         mContent.onActivityResult(requestCode, resultCode, data);
+    }
+
+    public String getVersion() {
+        return mContent.getVersion();
     }
 
     // TODO(shouqun): requestFocusFromTouch, setVerticalScrollBarEnabled are

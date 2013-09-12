@@ -18,6 +18,7 @@ import org.chromium.content.browser.ContentVideoView;
 import org.chromium.content.browser.ContentView;
 import org.chromium.content.browser.ContentViewCore;
 import org.chromium.content.browser.ContentViewRenderView;
+import org.chromium.content.browser.ContentViewStatics;
 import org.chromium.content.browser.LoadUrlParams;
 import org.chromium.content.browser.NavigationHistory;
 import org.chromium.ui.WindowAndroid;
@@ -87,6 +88,8 @@ public class XWalkContent extends FrameLayout {
         mContentViewCore = mContentView.getContentViewCore();
         mContentsClientBridge.installWebContentsObserver(mContentViewCore);
 
+        mContentView.setDownloadDelegate(mContentsClientBridge);
+
         mSettings = new XWalkSettings(getContext(), mWebContents, true);
     }
 
@@ -131,6 +134,10 @@ public class XWalkContent extends FrameLayout {
         mContentsClientBridge.setXWalkClient(client);
     }
 
+    public void setDownloadListener(DownloadListener listener) {
+        mContentsClientBridge.setDownloadListener(listener);
+    }
+
     public void onPause() {
         mContentViewCore.onActivityPause();
     }
@@ -168,6 +175,17 @@ public class XWalkContent extends FrameLayout {
         mContentView.stopLoading();
     }
 
+    // TODO(Guangzhen): ContentViewStatics will be removed in upstream,
+    // details in content_view_statics.cc.
+    // We need follow up after upstream updates that.
+    public void pauseTimers() {
+        ContentViewStatics.setWebKitSharedTimersSuspended(true);
+    }
+
+    public void resumeTimers() {
+        ContentViewStatics.setWebKitSharedTimersSuspended(false);
+    }
+
     public String getOriginalUrl() {
         NavigationHistory history = mContentViewCore.getNavigationHistory();
         int currentIndex = history.getCurrentEntryIndex();
@@ -175,6 +193,10 @@ public class XWalkContent extends FrameLayout {
             return history.getEntryAtIndex(currentIndex).getOriginalUrl();
         }
         return null;
+    }
+
+    public String getVersion() {
+        return nativeGetVersion(mXWalkContent);
     }
 
     // For instrumentation test.
@@ -201,4 +223,5 @@ public class XWalkContent extends FrameLayout {
     private native int nativeGetWebContents(int nativeXWalkContent);
     private native void nativeClearCache(int nativeXWalkContent, boolean includeDiskFiles);
     private native String nativeDevToolsAgentId(int nativeXWalkContent);
+    private native String nativeGetVersion(int nativeXWalkContent);
 }

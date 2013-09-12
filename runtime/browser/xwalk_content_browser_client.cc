@@ -24,6 +24,7 @@
 #if defined(OS_ANDROID)
 #include "base/android/path_utils.h"
 #include "base/base_paths_android.h"
+#include "xwalk/runtime/browser/runtime_resource_dispatcher_host_delegate.h"
 #include "xwalk/runtime/common/android/xwalk_globals_android.h"
 #endif
 
@@ -116,12 +117,7 @@ XWalkContentBrowserClient::GetWebContentsViewDelegate(
 
 void XWalkContentBrowserClient::RenderProcessHostCreated(
     content::RenderProcessHost* host) {
-#if !defined(OS_ANDROID)
   main_parts_->extension_service()->OnRenderProcessHostCreated(host);
-#else
-  // Extension in Android is not supported currently.
-  NOTIMPLEMENTED();
-#endif
 }
 
 content::MediaObserver* XWalkContentBrowserClient::GetMediaObserver() {
@@ -149,6 +145,10 @@ void XWalkContentBrowserClient::GetAdditionalMappedFilesForChildProcess(
   mappings->push_back(
       content::FileDescriptorInfo(kXWalkPakDescriptor,
                                   base::FileDescriptor(f, true)));
+}
+
+void XWalkContentBrowserClient::ResourceDispatcherHostCreated() {
+  RuntimeResourceDispatcherHostDelegate::ResourceDispatcherHostCreated();
 }
 #endif
 

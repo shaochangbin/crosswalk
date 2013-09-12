@@ -5,7 +5,31 @@
       'type': 'none',
       'variables': {
         'java_in_dir': 'app/android/runtime_client',
+        'generated_src_dirs': [ '<(intermediate_dir)/version_java' ],
       },
+      'actions': [
+        {
+          # Generate the version for runtime client.
+          'action_name': 'generate_runtime_client_version',
+          'variables': {
+            'template_file': 'app/android/runtime_client/src/templates/XWalkRuntimeClientVersion.template',
+            'output_file': '<(intermediate_dir)/version_java/XWalkRuntimeClientVersion.java',
+          },
+          'inputs': [
+            '<(template_file)',
+            'build/android/generate_runtime_client_version.py',
+          ],
+          'outputs': [
+            '<(output_file)',
+          ],
+          'action': [
+            'python', 'build/android/generate_runtime_client_version.py',
+            '--template=<(template_file)',
+            '--output=<(output_file)',
+            '--xwalk-version=<(xwalk_version)',
+          ],
+        },
+      ],
       'includes': ['../build/java.gypi'],
     },
     {
@@ -30,6 +54,11 @@
         'java_in_dir': 'app/android/app_template',
         'resource_dir': 'app/android/app_template/res',
         'asset_location': 'app/android/app_template/assets',
+        'additional_input_paths': [
+          '<(asset_location)/extensions-config.json',
+          '<(asset_location)/index.html',
+          '<(asset_location)/sampapp-icon-helloworld.png',
+        ],
       },
       'includes': [ '../build/java_apk.gypi' ],
     },
@@ -52,17 +81,17 @@
         {
           'destination': '<(PRODUCT_DIR)/xwalk_app_template/scripts/ant',
           'files': [
-            './build/android/ant/apk-codegen.xml',
-            './build/android/ant/apk-package.xml',
-            './build/android/ant/apk-package-resources.xml',
-            './build/android/ant/xwalk-debug.keystore',
+            './app/tools/android/ant/apk-codegen.xml',
+            './app/tools/android/ant/apk-package.xml',
+            './app/tools/android/ant/apk-package-resources.xml',
+            './app/tools/android/ant/xwalk-debug.keystore',
           ],
         },
         {
           'destination': '<(PRODUCT_DIR)/xwalk_app_template/scripts/gyp/',
           'files': [
-            './build/android/gyp/dex.py',
-            './build/android/gyp/finalize_apk.py',
+            './app/tools/android/gyp/dex.py',
+            './app/tools/android/gyp/finalize_apk.py',
             '../build/android/gyp/ant.py',
             '../build/android/gyp/jar.py',
             '../build/android/gyp/javac.py',
@@ -81,8 +110,8 @@
         {
           'destination': '<(PRODUCT_DIR)/xwalk_app_template/',
           'files': [
-            'build/android/customize.py',
-            'build/android/make_apk.py',
+            'app/tools/android/customize.py',
+            'app/tools/android/make_apk.py',
           ],
         },
       ],

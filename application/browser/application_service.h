@@ -5,7 +5,13 @@
 #ifndef XWALK_APPLICATION_BROWSER_APPLICATION_SERVICE_H_
 #define XWALK_APPLICATION_BROWSER_APPLICATION_SERVICE_H_
 
+#include <string>
+
+#include "base/memory/scoped_ptr.h"
+#include "base/files/file_path.h"
+#include "xwalk/application/browser/application_store.h"
 #include "xwalk/runtime/browser/runtime_context.h"
+#include "xwalk/application/common/application.h"
 
 namespace xwalk {
 class RuntimeContext;
@@ -21,8 +27,18 @@ class ApplicationService {
   explicit ApplicationService(xwalk::RuntimeContext* runtime_context);
   virtual ~ApplicationService();
 
+  bool Install(const base::FilePath& path, std::string* id);
+  bool Uninstall(const std::string& id);
+  bool Launch(const std::string& id);
+  bool Launch(const base::FilePath& path);
+
+  // Currently there's only one running application at a time.
+  const Application* GetRunningApplication() const;
+
  private:
   xwalk::RuntimeContext* runtime_context_;
+  scoped_ptr<ApplicationStore> app_store_;
+  scoped_refptr<const Application> application_;
 
   DISALLOW_COPY_AND_ASSIGN(ApplicationService);
 };

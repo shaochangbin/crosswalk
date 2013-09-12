@@ -7,10 +7,11 @@
 -->
 
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    android:versionCode="1" android:versionName="1.29.3.0"
     package="org.xwalk.runtime.lib">
 
     <application android:name="org.xwalk.runtime.lib.RuntimeLibApplication"
-        android:label="XWalkRuntimeLib" android:hardwareAccelerated="true" android:icon="@drawable/xwalk_icon">
+        android:label="XWalkRuntimeLib" android:hardwareAccelerated="true" android:icon="@drawable/crosswalk">
     </application>
 
   <uses-sdk android:minSdkVersion="14" android:targetSdkVersion="17" />

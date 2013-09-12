@@ -1,5 +1,5 @@
 ''' This file indicate the dependencies crosswalk lays on.
-    DO NOT use this DEPS to checkout code, it's for tools/fetch_deps.py.
+    DO NOT use this DEPS to checkout code, it's for tools/generate_gclient-xwalk.py.
 '''
 
 # chromium_version is the version of chromium crosswalk based,
@@ -7,11 +7,13 @@
 # Use 'Trunk' for trunk.
 # If using trunk, will use '.DEPS.git' for gclient.
 chromium_version = '29.0.1547.57'
-chromium_crosswalk_point = 'a5d8dbe3d3cd11de9408acef15414495a6c251aa'
+chromium_crosswalk_point = 'd845fd7564ae03a3763589a2a7aa0a7ce9939b94'
 blink_crosswalk_point = 'bcc7da6145656ada9a0840b3f3b73878ed99b389'
 deps_xwalk = {
-  'src': 'ssh://git@github.com/otcshare/chromium-crosswalk.git@%s' % chromium_crosswalk_point,
-  'src/third_party/WebKit': 'ssh://git@github.com/otcshare/blink-crosswalk.git@%s' % blink_crosswalk_point,
+  'src': 'https://github.com/crosswalk-project/chromium-crosswalk.git@%s' % chromium_crosswalk_point,
+  'src/third_party/WebKit': 'https://github.com/crosswalk-project/blink-crosswalk.git@%s' % blink_crosswalk_point,
+  # Please delete this dependency when based chromium was rebased to more than M30.
+  'src/third_party/webrtc': 'http://webrtc.googlecode.com/svn/stable/webrtc@4297',
 }
 vars_xwalk = {
   'jsoncpp': 'http://svn.code.sf.net/p/jsoncpp/code',

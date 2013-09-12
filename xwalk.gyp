@@ -1,7 +1,7 @@
 {
   'variables': {
     'xwalk_product_name': 'XWalk',
-    'xwalk_version': '1.29.3.0',
+    'xwalk_version': '1.29.4.0',
     'conditions': [
       ['OS=="linux"', {
        'use_custom_freetype%': 1,
@@ -175,8 +175,6 @@
             'runtime/browser/android/net/input_stream_reader.h',
             'runtime/browser/android/net/url_constants.cc',
             'runtime/browser/android/net/url_constants.h',
-            'runtime/browser/android/net/xwalk_url_request_job_factory.cc',
-            'runtime/browser/android/net/xwalk_url_request_job_factory.h',
             'runtime/browser/android/net_disk_cache_remover.cc',
             'runtime/browser/android/net_disk_cache_remover.h',
             'runtime/browser/android/renderer_host/xwalk_render_view_host_ext.cc',
@@ -189,9 +187,13 @@
             'runtime/browser/android/xwalk_contents_client_bridge_base.h',
             'runtime/browser/android/xwalk_dev_tools_server.cc',
             'runtime/browser/android/xwalk_dev_tools_server.h',
+            'runtime/browser/android/xwalk_download_resource_throttle.cc',
+            'runtime/browser/android/xwalk_download_resource_throttle.h',
             'runtime/browser/android/xwalk_settings.cc',
             'runtime/browser/android/xwalk_web_contents_delegate.cc',
             'runtime/browser/android/xwalk_web_contents_delegate.h',
+            'runtime/browser/runtime_resource_dispatcher_host_delegate.cc',
+            'runtime/browser/runtime_resource_dispatcher_host_delegate.h',
             'runtime/common/android/xwalk_hit_test_data.cc',
             'runtime/common/android/xwalk_hit_test_data.h',
             'runtime/common/android/xwalk_globals_android.cc',
