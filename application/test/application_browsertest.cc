@@ -12,8 +12,7 @@
 namespace {
 
 bool WaitForRuntimeCountCallback(int* count) {
-  --(*count);
-  return *count == 0;
+  return --(*count) == 0;
 }
 
 }  // namespace
