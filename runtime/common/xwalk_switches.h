@@ -23,7 +23,6 @@ extern const char kUninstall[];
 extern const char kXWalkExternalExtensionsPath[];
 
 extern const char kXWalkAllowExternalExtensionsForRemoteSources[];
-
 }  // namespace switches
 
 #endif  // XWALK_RUNTIME_COMMON_XWALK_SWITCHES_H_

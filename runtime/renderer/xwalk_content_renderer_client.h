@@ -15,6 +15,10 @@ namespace xwalk {
 
 class XWalkRenderProcessObserver;
 
+namespace application {
+class ApplicationDispatcher;
+}
+
 class XWalkContentRendererClient
     : public content::ContentRendererClient,
       public extensions::XWalkExtensionRendererController::Delegate {
@@ -41,6 +45,7 @@ class XWalkContentRendererClient
 
   scoped_ptr<extensions::XWalkExtensionRendererController>
       extension_controller_;
+  scoped_ptr<application::ApplicationDispatcher> application_controller_;
 
 #if defined(OS_ANDROID)
   scoped_ptr<XWalkRenderProcessObserver> xwalk_render_process_observer_;

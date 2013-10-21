@@ -30,5 +30,4 @@ const char kXWalkExternalExtensionsPath[] = "external-extensions-path";
 
 const char kXWalkAllowExternalExtensionsForRemoteSources[] =
     "allow-external-extensions-for-remote-sources";
-
 }  // namespace switches

@@ -6,13 +6,20 @@
 
 #include <string>
 
+#include "base/bind.h"
+#include "base/command_line.h"
+#include "base/message_loop/message_loop.h"
+#include "base/strings/string_number_conversions.h"
+#include "content/public/browser/render_view_host.h"
+#include "content/public/browser/web_contents.h"
 #include "xwalk/application/common/application_manifest_constants.h"
+#include "xwalk/application/common/application_messages.h"
 #include "xwalk/application/common/constants.h"
 #include "xwalk/runtime/browser/runtime.h"
 #include "xwalk/runtime/browser/runtime_context.h"
+#include "xwalk/runtime/common/xwalk_switches.h"
 #include "net/base/net_util.h"
 
-using content::WebContents;
 using xwalk::Runtime;
 using xwalk::RuntimeContext;
 
@@ -22,8 +29,11 @@ namespace application {
 ApplicationProcessManager::ApplicationProcessManager(
     RuntimeContext* runtime_context)
     : runtime_context_(runtime_context),
+      main_document_data_(),
       main_runtime_(NULL),
       weak_ptr_factory_(this) {
+  main_document_idle_time_ = base::TimeDelta::FromSeconds(2);
+  main_document_suspending_time_ = base::TimeDelta::FromSeconds(2);
 }
 
 ApplicationProcessManager::~ApplicationProcessManager() {
@@ -37,6 +47,51 @@ bool ApplicationProcessManager::LaunchApplication(
   // NOTE: For now we allow launching a web app from a local path. This may go
   // away at some point.
   return RunFromLocalPath(application);
+}
+
+void ApplicationProcessManager::OnShouldSuspendAck(int sequence_id) {
+  if (sequence_id == main_document_data_.close_sequence_id) {
+    main_runtime_->web_contents()->GetRenderViewHost()->Send(
+        new ApplicationMsg_Suspend());
+  }
+}
+
+void ApplicationProcessManager::OnSuspendAck() {
+  main_document_data_.is_closing = true;
+  base::MessageLoop::current()->PostDelayedTask(
+    FROM_HERE,
+    base::Bind(&ApplicationProcessManager::CloseMainDocument,
+               weak_ptr_factory_.GetWeakPtr(),
+               main_document_data_.close_sequence_id),
+    main_document_suspending_time_);
+}
+
+void ApplicationProcessManager::CancelSuspend() {
+  main_document_data_.is_closing = false;
+  main_runtime_->web_contents()->GetRenderViewHost()->Send(
+      new ApplicationMsg_CancelSuspend());
+}
+
+void ApplicationProcessManager::OnRuntimeAdded(Runtime* runtime) {
+  runtimes_.insert(runtime);
+  // As long as a new Runtime object is added, the main document should
+  // be kept alive.
+  OnMainDocumentActive();
+}
+
+void ApplicationProcessManager::OnRuntimeRemoved(Runtime* runtime) {
+  runtimes_.erase(runtime);
+  // We need to go around the first ShouldSuspend/ShouldSuspendAck
+  // message pair to check whether main document is ready to close.
+  if (main_runtime_ && runtimes_.size() == 1 &&
+      !main_document_data_.is_closing) {
+    base::MessageLoop::current()->PostDelayedTask(
+        FROM_HERE,
+        base::Bind(&ApplicationProcessManager::OnMainDocumentIdle,
+                   weak_ptr_factory_.GetWeakPtr(),
+                   ++main_document_data_.close_sequence_id),
+        main_document_idle_time_);
+  }
 }
 
 bool ApplicationProcessManager::RunMainDocument(
@@ -70,6 +125,30 @@ bool ApplicationProcessManager::RunMainDocument(
 
   main_runtime_ = Runtime::Create(runtime_context_, url);
   return true;
+}
+
+void ApplicationProcessManager::CloseMainDocument(int sequence_id) {
+  DCHECK(main_runtime_);
+  if (sequence_id == main_document_data_.close_sequence_id &&
+      main_document_data_.is_closing) {
+    main_runtime_->Close();
+  }
+}
+
+void ApplicationProcessManager::OnMainDocumentActive() {
+  if (!main_document_data_.is_closing) {
+    // Cancel the current close sequence id by changing close_sequence_id,
+    // which causes to ignore the next ShouldSuspendAck.
+    ++main_document_data_.close_sequence_id;
+  } else {
+    // If the main document is about to close, we should cancel suspend event.
+    CancelSuspend();
+  }
+}
+
+void ApplicationProcessManager::OnMainDocumentIdle(int sequence_id) {
+  main_runtime_->web_contents()->GetRenderViewHost()->Send(
+      new ApplicationMsg_ShouldSuspend(sequence_id));
 }
 
 bool ApplicationProcessManager::RunFromLocalPath(
