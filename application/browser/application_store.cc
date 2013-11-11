@@ -18,6 +18,8 @@ const char ApplicationStore::kApplicationPath[] = "path";
 
 const char ApplicationStore::kInstallTime[] = "install_time";
 
+const char ApplicationStore::kRegisteredEvents[] = "registered_events";
+
 ApplicationStore::ApplicationStore(xwalk::RuntimeContext* runtime_context)
     : runtime_context_(runtime_context),
       db_store_(new DBStoreImpl(runtime_context->GetPath())),
@@ -74,6 +76,16 @@ scoped_refptr<const Application> ApplicationStore::GetApplicationByID(
 ApplicationStore::ApplicationMap*
 ApplicationStore::GetInstalledApplications() const {
   return applications_.get();
+}
+
+bool ApplicationStore::SetApplicationEvents(
+    const std::string& id,
+    base::ListValue* events) {
+  return db_store_->SetApplicationEvents(id, events);
+}
+
+base::ListValue* ApplicationStore::GetApplicationEvents(const std::string& id) {
+  return db_store_->GetApplicationEvents(id);
 }
 
 void ApplicationStore::InitApplications(const base::DictionaryValue* db) {

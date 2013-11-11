@@ -29,6 +29,13 @@ class DBStoreSqliteImpl: public DBStore {
   virtual bool InitDB() OVERRIDE;
   virtual void SetValue(const std::string& key, base::Value* value) OVERRIDE;
 
+  virtual base::ListValue* GetApplicationEvents(
+      const std::string& id) OVERRIDE;
+  virtual bool SetApplicationEvents(
+      const std::string& id,
+      base::ListValue* events) OVERRIDE;
+  bool RemoveApplicationEvents(const std::string& id);
+
  private:
   enum Action {
     ACTION_UNKNOWN = 0,
@@ -50,6 +57,12 @@ class DBStoreSqliteImpl: public DBStore {
   bool SetManifestValue(const std::string& id, base::Value* value);
   bool SetInstallTimeValue(const std::string& id, base::Value* value);
   bool SetApplicationPathValue(const std::string& id, base::Value* value);
+
+  bool SetEventsValue(const std::string& id,
+                      base::Value* events,
+                      const std::string& operation);
+  bool DeleteEventsValue(const std::string& id);
+
   scoped_ptr<sql::Connection> sqlite_db_;
   sql::MetaTable meta_table_;
   bool db_initialized_;

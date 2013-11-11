@@ -51,6 +51,12 @@ class DBStore {
   // each observer.
   virtual void SetValue(const std::string& key, base::Value* value) = 0;
 
+  virtual base::ListValue* GetApplicationEvents(
+      const std::string& id) = 0;
+  virtual bool SetApplicationEvents(
+      const std::string& id,
+      base::ListValue* events) = 0;
+
  protected:
   scoped_ptr<base::DictionaryValue> db_;
   base::FilePath data_path_;
