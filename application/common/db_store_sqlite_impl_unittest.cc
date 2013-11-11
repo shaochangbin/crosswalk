@@ -200,5 +200,96 @@ TEST_F(DBStoreSqliteImplTest, DBUpdate4) {
   EXPECT_TRUE(changed_value->Equals(db_value));
 }
 
+TEST_F(DBStoreSqliteImplTest, DBInsertEvent) {
+  TestInit();
+  std::string id("test_id");
+  scoped_ptr<base::DictionaryValue> value(new base::DictionaryValue);
+  value->SetString(ApplicationStore::kApplicationPath, "no path");
+  base::DictionaryValue* manifest = new base::DictionaryValue;
+  manifest->SetString("a", "b");
+  value->Set(ApplicationStore::kManifestPath, manifest);
+  value->SetDouble(ApplicationStore::kInstallTime, 0);
+  db_store_->SetValue(id, value.release());
+
+  std::string event_name1("app.onLaunched");
+  std::string event_name2("app.onSuspended");
+  base::ListValue* events = new base::ListValue;
+  events->AppendString(event_name1);
+  events->AppendString(event_name2);
+
+  ASSERT_TRUE(db_store_->SetApplicationEvents(id, events));
+
+  scoped_ptr<base::ListValue> old_value(
+      db_store_->GetApplicationEvents(id)->DeepCopy());
+  // Refresh the database cache from db file.
+  ASSERT_TRUE(db_store_->InitDB());
+  EXPECT_TRUE(old_value->Equals(db_store_->GetApplicationEvents(id)));
+}
+
+TEST_F(DBStoreSqliteImplTest, DBDeleteEvent) {
+  TestInit();
+  std::string id("test_id");
+  scoped_ptr<base::DictionaryValue> value(new base::DictionaryValue);
+  value->SetString(ApplicationStore::kApplicationPath, "no path");
+  base::DictionaryValue* manifest = new base::DictionaryValue;
+  manifest->SetString("a", "b");
+  value->Set(ApplicationStore::kManifestPath, manifest);
+  value->SetDouble(ApplicationStore::kInstallTime, 0);
+  db_store_->SetValue(id, value.release());
+
+  std::string event_name1("app.onLaunched");
+  std::string event_name2("app.onSuspend");
+  base::ListValue* events = new base::ListValue;
+  events->AppendString(event_name1);
+  events->AppendString(event_name2);
+  ASSERT_TRUE(db_store_->SetApplicationEvents(id, events));
+
+  base::StringValue* event1 = new base::StringValue(event_name1);
+  base::ListValue* events_list = db_store_->GetApplicationEvents(id);
+  EXPECT_TRUE(NULL != events_list);
+  EXPECT_NE(events_list->Find(*event1), events_list->end());
+
+  size_t index = 0;
+  base::ListValue* new_events(events->DeepCopy());
+  new_events->Remove(*event1, &index);
+  ASSERT_TRUE(db_store_->SetApplicationEvents(id, new_events));
+
+  events_list = db_store_->GetApplicationEvents(id);
+  EXPECT_EQ(events_list->Find(*event1), events_list->end());
+
+  // Refresh the database cache from db file.
+  ASSERT_TRUE(db_store_->InitDB());
+  base::ListValue* new_events_list = db_store_->GetApplicationEvents(id);
+
+  EXPECT_EQ(new_events_list->Find(*event1), new_events_list->end());
+}
+
+TEST_F(DBStoreSqliteImplTest, DBDeleteListEvents) {
+  TestInit();
+  std::string id("test_id");
+  scoped_ptr<base::DictionaryValue> value(new base::DictionaryValue);
+  value->SetString(ApplicationStore::kApplicationPath, "no path");
+  base::DictionaryValue* manifest = new base::DictionaryValue;
+  manifest->SetString("a", "b");
+  value->Set(ApplicationStore::kManifestPath, manifest);
+  value->SetDouble(ApplicationStore::kInstallTime, 0);
+
+  db_store_->SetValue(id, value.release());
+
+  std::string event_name1("app.onLaunched");
+  std::string event_name2("app.onSuspended");
+  base::ListValue* events = new base::ListValue;
+  events->AppendString(event_name1);
+  events->AppendString(event_name2);
+  ASSERT_TRUE(db_store_->SetApplicationEvents(id, events));
+
+  ASSERT_TRUE(db_store_->RemoveApplicationEvents(id));
+  EXPECT_TRUE(NULL == db_store_->GetApplicationEvents(id));
+
+  // Refresh the database cache from db file.
+  ASSERT_TRUE(db_store_->InitDB());
+  EXPECT_TRUE(NULL == db_store_->GetApplicationEvents(id));
+}
+
 }  // namespace application
 }  // namespace xwalk
