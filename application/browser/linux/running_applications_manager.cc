@@ -9,7 +9,9 @@
 #include "dbus/bus.h"
 #include "dbus/message.h"
 
+#include "xwalk/application/browser/application_event_manager.h"
 #include "xwalk/application/browser/linux/running_application_object.h"
+#include "xwalk/application/common/event_names.h"
 
 namespace {
 
@@ -100,6 +102,10 @@ void RunningApplicationsManager::OnLaunch(
     return;
   }
   CHECK(app_id == application->id());
+  scoped_refptr<Event> event = Event::CreateEvent(
+      kOnLaunched, scoped_ptr<base::ListValue>(new base::ListValue));
+  application_service_->event_manager()->SendEvent(app_id, event);
+
   // FIXME(cmarcelo): ApplicationService will tell us when new applications
   // appear (with DidLaunchApplication()) and we create new managed objects
   // in D-Bus based on that.

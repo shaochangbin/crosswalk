@@ -85,6 +85,8 @@ class ApplicationService : public Application::Observer {
       const std::string& extension_name,
       const std::string& perm_table);
 
+  ApplicationEventManager* event_manager() { return event_manager_; }
+
  private:
   // Implementation of Application::Observer.
   virtual void OnApplicationTerminated(Application* app) OVERRIDE;
