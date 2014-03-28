@@ -5,6 +5,8 @@
 #include "xwalk/runtime/browser/ui/native_app_window_views.h"
 
 #include "content/public/browser/notification_service.h"
+#include "content/public/browser/render_process_host.h"
+#include "content/public/browser/render_view_host.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/gfx/screen.h"
 #include "ui/views/controls/webview/webview.h"
@@ -12,6 +14,7 @@
 #include "ui/views/widget/widget.h"
 #include "xwalk/runtime/browser/ui/top_view_layout_views.h"
 #include "xwalk/runtime/browser/ui/xwalk_views_delegate.h"
+#include "xwalk/runtime/common/xwalk_common_messages.h"
 #include "xwalk/runtime/common/xwalk_notification_types.h"
 
 #if defined(OS_WIN)
@@ -120,6 +123,7 @@ void NativeAppWindowViews::Hide() {
 
 void NativeAppWindowViews::Maximize() {
   window_->Maximize();
+  LOG(INFO) << "+++" << __FUNCTION__;  
 }
 
 void NativeAppWindowViews::Minimize() {
@@ -290,6 +294,8 @@ void NativeAppWindowViews::OnWidgetDestroyed(views::Widget* widget) {
 }
 void NativeAppWindowViews::OnWidgetBoundsChanged(views::Widget* widget,
     const gfx::Rect& new_bounds) {
+  LOG(INFO) << "+++++++++++ " << __FUNCTION__ << "+++++++++++++";
+  web_contents_->GetRenderViewHost()->Send(new XWalkViewMsg_SuspendScheduledTasks);
 }
 
 // static
