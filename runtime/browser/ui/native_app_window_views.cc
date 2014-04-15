@@ -294,8 +294,9 @@ void NativeAppWindowViews::OnWidgetDestroyed(views::Widget* widget) {
 }
 void NativeAppWindowViews::OnWidgetBoundsChanged(views::Widget* widget,
     const gfx::Rect& new_bounds) {
-  LOG(INFO) << "+++++++++++ " << __FUNCTION__ << "+++++++++++++";
-  web_contents_->GetRenderViewHost()->Send(new XWalkViewMsg_SuspendScheduledTasks);
+  LOG(INFO) << "+++++++++++ " << __FUNCTION__ ;
+  web_contents_->GetRenderViewHost()->Send(
+      new ViewMsg_SuspendScheduledTasks(web_contents_->GetRoutingID()));
 }
 
 // static

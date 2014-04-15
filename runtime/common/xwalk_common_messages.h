@@ -35,7 +35,7 @@ IPC_MESSAGE_CONTROL3(ViewMsg_SetAccessWhiteList,  // NOLINT
 IPC_MESSAGE_CONTROL1(ViewMsg_EnableWarpMode,    // NOLINT
                      GURL /* application url */)
 
-IPC_MESSAGE_CONTROL0(XWalkViewMsg_SuspendScheduledTasks)  // NOLINT
+IPC_MESSAGE_ROUTED0(ViewMsg_SuspendScheduledTasks)  // NOLINT
 
 // These are messages sent from the renderer to the browser process.
 #if defined(OS_TIZEN)

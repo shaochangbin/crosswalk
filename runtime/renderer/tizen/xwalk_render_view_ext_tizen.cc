@@ -32,10 +32,9 @@ void XWalkRenderViewExtTizen::RenderViewCreated(content::RenderView* render_view
 }
 
 bool XWalkRenderViewExtTizen::OnMessageReceived(const IPC::Message& message) {
-  LOG(INFO) << "+++" << __FUNCTION__ << "+++";
   bool handled = true;
   IPC_BEGIN_MESSAGE_MAP(XWalkRenderViewExtTizen, message)
-    IPC_MESSAGE_HANDLER(XWalkViewMsg_SuspendScheduledTasks,
+    IPC_MESSAGE_HANDLER(ViewMsg_SuspendScheduledTasks,
                         OnSuspendScheduledTasks)
     IPC_MESSAGE_UNHANDLED(handled = false)
   IPC_END_MESSAGE_MAP()
