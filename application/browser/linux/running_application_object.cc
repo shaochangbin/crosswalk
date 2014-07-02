@@ -11,6 +11,7 @@
 #include "dbus/bus.h"
 #include "dbus/message.h"
 #include "dbus/exported_object.h"
+#include "ipc/ipc_channel.h"
 #include "xwalk/application/browser/application_tizen.h"
 #include "xwalk/application/browser/linux/running_applications_manager.h"
 
@@ -65,6 +66,13 @@ RunningApplicationObject::RunningApplicationObject(
   dbus_object()->ExportMethod(
       kRunningApplicationDBusInterface, "GetEPChannel",
       base::Bind(&RunningApplicationObject::OnGetExtensionProcessChannel,
+                 base::Unretained(this)),
+      base::Bind(&RunningApplicationObject::OnExported,
+                 base::Unretained(this)));
+
+  dbus_object()->ExportMethod(
+      kRunningApplicationDBusInterface, "CreateChannel",
+      base::Bind(&RunningApplicationObject::OnCreateChannel,
                  base::Unretained(this)),
       base::Bind(&RunningApplicationObject::OnExported,
                  base::Unretained(this)));
@@ -127,6 +135,47 @@ void RunningApplicationObject::OnGetExtensionProcessChannel(
                  base::Unretained(this),
                  method_call,
                  response_sender));
+}
+
+void RunningApplicationObject::OnCreateChannel(
+    dbus::MethodCall* method_call,
+    dbus::ExportedObject::ResponseSender response_sender) {
+  dbus::MessageReader reader(method_call);
+  std::string channel_id;
+  int32 client_fd;
+
+  if (!reader.PopString(&channel_id) ||
+      !reader.PopInt32(&client_fd)) {
+    scoped_ptr<dbus::ErrorResponse> error_response =
+        dbus::ErrorResponse::FromMethodCall(method_call,
+                                            kRunningApplicationDBusError,
+                                            "Parsing Parameters Error.");
+    response_sender.Run(error_response.PassAs<dbus::Response>());
+    return;
+  }
+  
+  content::BrowserThread::PostTask(
+      content::BrowserThread::IO, FROM_HERE,
+      base::Bind(&RunningApplicationObject::StartProcess,
+      base::Unretained(this), channel_id, client_fd));
+  scoped_ptr<dbus::Response> response =
+      dbus::Response::FromMethodCall(method_call);
+  response_sender.Run(response.Pass());
+}
+
+void RunningApplicationObject::StartProcess(
+    const std::string& channel_id, int client_fd) {
+  /*
+  std::string channel_id =
+  IPC::Channel::GenerateVerifiedChannelID(std::string());
+  IPC::Channel* channel = new IPC::Channel(
+       channel_id, IPC::Channel::MODE_SERVER, this);
+  if (!channel_->Connect())
+    NOTREACHED();
+  IPC::ChannelHandle channel_handle(channel_id,
+      base::FileDescriptor(channel->TakeClientFileDescriptor(), true));
+  ep_bp_channel_ = channel_handle;
+  */
 }
 
 #if defined(OS_TIZEN)

@@ -50,6 +50,14 @@ class RunningApplicationObject : public dbus::ManagedObject {
       dbus::MethodCall* method_call,
       dbus::ExportedObject::ResponseSender response_sender);
 
+  void OnCreateChannel(
+      dbus::MethodCall* method_call,
+      dbus::ExportedObject::ResponseSender response_sender);
+
+  void StartProcess(
+      const std::string& channel_id,
+      int client_fd);
+
 #if defined(OS_TIZEN)
   void OnHide(dbus::MethodCall* method_call,
               dbus::ExportedObject::ResponseSender response_sender);

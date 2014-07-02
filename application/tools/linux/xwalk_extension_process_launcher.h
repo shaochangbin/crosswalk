@@ -28,16 +28,21 @@ class XWalkExtensionProcessLauncher: public base::Thread {
   virtual void CleanUp() OVERRIDE;
 
   // Will be called in launcher's main thread.
-  void Launch(const std::string& channel_id, int channel_fd);
+  void Launch();
 
   bool is_started() const { return is_started_; }
 
+  std::string channel_id() { return channel_id_; }
+  int channel_fd() { return channel_fd_; }
+
  private:
-  void StartExtensionProcess(const std::string& channel_id, int channel_fd);
+  void StartExtensionProcess();
 
   bool is_started_;
   scoped_ptr<base::AtExitManager> exit_manager_;
   scoped_ptr<xwalk::extensions::XWalkExtensionProcess> extension_process_;
+  std::string channel_id_;
+  int channel_fd_;
 };
 
 #endif  // XWALK_APPLICATION_TOOLS_LINUX_XWALK_EXTENSION_PROCESS_LAUNCHER_H_

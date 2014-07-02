@@ -155,6 +155,7 @@ void XWalkExtensionProcessHost::StartProcess() {
   CommandLine* cmd_line = CommandLine::ForCurrentProcess();
   if (cmd_line->HasSwitch(switches::kXWalkRunAsService)) {
 #if defined(OS_LINUX)
+/*
     std::string channel_id =
         IPC::Channel::GenerateVerifiedChannelID(std::string());
     channel_.reset(new IPC::Channel(
@@ -169,6 +170,7 @@ void XWalkExtensionProcessHost::StartProcess() {
             &XWalkExtensionProcessHost::Delegate::OnExtensionProcessCreated,
             base::Unretained(delegate_), render_process_host_->GetID(),
             channel_handle));
+*/
 #else
     NOTIMPLEMENTED();
 #endif
