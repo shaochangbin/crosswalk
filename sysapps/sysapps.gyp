@@ -68,6 +68,11 @@
         'raw_socket/udp_socket.idl',
         'raw_socket/udp_socket_object.cc',
         'raw_socket/udp_socket_object.h',
+        'realsense/realsense.idl',
+        'realsense/realsense_extension.cc',
+        'realsense/realsense_extension.h',
+        'realsense/realsense_object.cc',
+        'realsense/realsense_object.h'
       ],
       'conditions': [
         ['OS!="android"', {
