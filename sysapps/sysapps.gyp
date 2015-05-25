@@ -89,9 +89,16 @@
           ],
         }],
         ['OS=="win"', {
+          'include_dirs': [
+            '<!(echo %RSSDK_DIR%\include)',
+          ],
           'link_settings': {
+            'library_dirs': [
+              '<!(echo %RSSDK_DIR%\lib\Win32)',
+            ],
             'libraries': [
               '-lPdh.lib',
+              '-llibpxc.lib',
             ],
           },
         }]

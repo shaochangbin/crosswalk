@@ -6,7 +6,10 @@
 
 #include "xwalk/sysapps/realsense/realsense.h"
 
+#include "pxcsession.h" // NOLINT
+
 #include <string>
+#include <sstream>
 
 namespace xwalk {
 namespace sysapps {
@@ -32,9 +35,17 @@ void RealSenseObject::StopEvent(const std::string& type) {
 
 void RealSenseObject::OnGetVersion(
     scoped_ptr<XWalkExtensionFunctionInfo> info) {
-  scoped_ptr<base::ListValue> data(new base::ListValue());
-  data->AppendString("hello realsense");
-  info->PostResult(data.Pass());
+  PXCSession *session = PXCSession::CreateInstance();
+  PXCSession::ImplVersion ver = session->QueryVersion();
+  session->Release();
+  std::ostringstream major, minor;
+  major << ver.major;
+  minor << ver.minor;
+
+  scoped_ptr<Version> version(new Version());
+  version->major = major.str();
+  version->minor = minor.str();
+  info->PostResult(GetVersion::Results::Create(*version, std::string()));
 }
 
 }  // namespace sysapps

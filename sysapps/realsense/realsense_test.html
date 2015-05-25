@@ -1,0 +1,12 @@
+<html>
+  <head>
+    <title>RealSense Extension Test</title>
+  </head>
+  <body>
+    <p id='version'></p>
+  </body>
+  <script>
+    var versionElement = document.getElementById('version'); 
+		xwalk.experimental.realsense.getVersion().then(function(v) {versionElement.innerHTML = 'RealSense Version Major: ' + v.major + ' Minor: ' + v.minor;});
+	</script>
+</html>
