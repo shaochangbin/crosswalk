@@ -110,8 +110,8 @@ void ScenePerceptionObject::OnStop(
     info->PostResult(error.Pass()); 
     return; 
   }
-  sceneperception_controller_.reset();
   started_ = false;
+  sceneperception_controller_.reset();
   scoped_ptr<base::ListValue> error(new base::ListValue());
   error->AppendString("noerror");
   info->PostResult(error.Pass());
@@ -127,6 +127,9 @@ void ScenePerceptionObject::OnReset(
 pxcStatus ScenePerceptionObject::OnModuleProcessedFrame(
     pxcUID mid, PXCBase* module, PXCCapture::Sample* sample) {
   if (mid == PXCScenePerception::CUID) {
+    if (!started_)
+      return PXC_STATUS_NO_ERROR;
+
     PXCScenePerception *sp = module->QueryInstance<PXCScenePerception>();
     
     TrackingEvent event;
@@ -150,6 +153,12 @@ pxcStatus ScenePerceptionObject::OnModuleProcessedFrame(
         case PXCScenePerception::FAILED:
           event.accuracy = ACCURACY_FAILED;
           break;
+      }
+      
+      float pose[12];
+      sp->GetCameraPose(pose);
+      for (int i = 0; i < 12; ++i) {
+        event.pose.push_back(pose[i]);
       }
     }
       

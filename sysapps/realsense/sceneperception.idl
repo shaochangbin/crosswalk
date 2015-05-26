@@ -11,7 +11,7 @@ namespace sceneperception {
   };
   
   dictionary TrackingEvent {
-    [instanceOf=Float32Array] object curPos;
+    double[] pose;
     Accuracy accuracy;
     double quality;
   };
