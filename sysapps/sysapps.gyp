@@ -72,7 +72,12 @@
         'realsense/realsense_extension.cc',
         'realsense/realsense_extension.h',
         'realsense/realsense_object.cc',
-        'realsense/realsense_object.h'
+        'realsense/realsense_object.h',
+        'realsense/sceneperception.idl',
+        'realsense/sceneperception_object.cc',
+        'realsense/sceneperception_object.h',
+        'realsense/sp_controller.h',
+        'realsense/sp_math_util.h'
       ],
       'conditions': [
         ['OS!="android"', {

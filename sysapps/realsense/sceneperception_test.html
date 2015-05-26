@@ -1,0 +1,47 @@
+<html>
+  <head>
+    <title>ScenePerception Test</title>
+  </head>
+  <body>
+    <p id='quality'>Quality: </p>
+	<p id='accuracy'>Accuracy: </p>
+	<div>
+		<button id='start'>Start</button>
+		<button id='reset'>Reset</button>
+		<button id='stop'>Stop</button>
+	</div>
+  </body>
+  <script>
+    var qualityElement = document.getElementById('quality');
+	var accuracyElement = document.getElementById('accuracy');
+	var startButton = document.getElementById('start');
+	var resetButton = document.getElementById('reset');
+	var stopButton = document.getElementById('stop'); 
+	
+	var sp = new xwalk.experimental.realsense.ScenePerception();
+	sp.ontracking = function(e) {
+		var quality = e.data.quality;
+		qualityElement.innerHTML = 'Quality: ' + quality.toFixed(2);
+		if (quality >= 0.5) {
+			qualityElement.innerHTML = 'Quality: ' + 'good';
+			accuracyElement.innerHTML = 'Accuracy: ' + e.data.accuracy;
+		} else {
+			qualityElement.innerHTML = 'Quality: ' + 'bad';
+		}
+	};
+	
+	startButton.addEventListener('click', function(e) {
+		sp.start().then(function(e) {console.log(e);});
+	});
+	
+	resetButton.addEventListener('click', function(e) {
+		sp.reset().then(function(e) {console.log(e);});
+	});
+	
+	stopButton.addEventListener('click', function(e) {
+		sp.stop().then(function(e) {console.log(e);});
+		qualityElement.innerHTML = 'Quality: ';
+		accuracyElement.innerHTML = 'Accuracy: ';
+	});
+  </script>
+</html>

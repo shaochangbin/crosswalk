@@ -8,6 +8,7 @@
 #include "ui/base/resource/resource_bundle.h"
 #include "xwalk/sysapps/realsense/realsense.h"
 #include "xwalk/sysapps/realsense/realsense_object.h"
+#include "xwalk/sysapps/realsense/sceneperception_object.h"
 
 namespace xwalk {
 namespace sysapps {
@@ -33,6 +34,9 @@ RealSenseInstance::RealSenseInstance()
   handler_.Register("realsenseConstructor",
       base::Bind(&RealSenseInstance::OnRealSenseConstructor,
                  base::Unretained(this)));
+  handler_.Register("sceneperceptionConstructor",
+      base::Bind(&RealSenseInstance::OnScenePerceptionConstructor,
+                 base::Unretained(this)));
 }
 
 void RealSenseInstance::HandleMessage(scoped_ptr<base::Value> msg) {
@@ -44,6 +48,14 @@ void RealSenseInstance::OnRealSenseConstructor(
   scoped_ptr<Params> params(Params::Create(*info->arguments()));
 
   scoped_ptr<BindingObject> obj(new RealSenseObject());
+  store_.AddBindingObject(params->object_id, obj.Pass());
+}
+
+void RealSenseInstance::OnScenePerceptionConstructor(
+    scoped_ptr<XWalkExtensionFunctionInfo> info) {
+  scoped_ptr<Params> params(Params::Create(*info->arguments()));
+
+  scoped_ptr<BindingObject> obj(new ScenePerceptionObject());
   store_.AddBindingObject(params->object_id, obj.Pass());
 }
 

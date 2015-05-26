@@ -16,5 +16,6 @@ namespace realsense {
     static void getVersion(VersionPromise promise);
 
     [nodoc] static RealSense realSenseConstructor(DOMString objectId);
+    [nodoc] static ScenePerception ScenePerceptionConstructor(DOMString objectId);
   };
 };

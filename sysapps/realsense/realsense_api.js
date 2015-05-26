@@ -23,4 +23,22 @@ var RealSense = function() {
 RealSense.prototype = new common.EventTargetPrototype();
 RealSense.prototype.constructor = RealSense;
 
+var ScenePerception = function() {
+  common.BindingObject.call(this, common.getUniqueId());
+  common.EventTarget.call(this);
+
+  internal.postMessage("sceneperceptionConstructor", [this._id]);
+  
+  this._addMethodWithPromise("start", Promise);
+  this._addMethodWithPromise("stop", Promise);
+  this._addMethodWithPromise("reset", Promise);
+  
+  this._addEvent("error");
+  this._addEvent("tracking");
+};
+
+ScenePerception.prototype = new common.EventTargetPrototype();
+ScenePerception.prototype.constructor = ScenePerception;
+
 exports = new RealSense();
+exports.ScenePerception = ScenePerception;
