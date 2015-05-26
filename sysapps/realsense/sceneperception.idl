@@ -10,10 +10,17 @@ namespace sceneperception {
     failed
   };
   
+  dictionary Mesh {
+    DOMString id;
+    double[] vertices;
+    double[] faces;
+  };
+  
   dictionary TrackingEvent {
     double[] pose;
     Accuracy accuracy;
     double quality;
+    Mesh[] meshes;
   };
   
   dictionary ErrorEvent {

@@ -31,6 +31,7 @@
 			qualityElement.innerHTML = 'Quality: ' + 'good';
 			accuracyElement.innerHTML = 'Accuracy: ' + e.data.accuracy;
 			updateCameraPose(e.data.pose);
+			updateMeshes(e.data.meshes);
 		} else {
 			qualityElement.innerHTML = 'Quality: ' + 'bad';
 		}
@@ -152,8 +153,12 @@
 		x_axis.geometry.vertices[1] = new THREE.Vector3(cameraXAxis.x, cameraXAxis.y, cameraXAxis.z);
 		x_axis.geometry.verticesNeedUpdate = true;
 		
-		console.log(cameraCenter.x, cameraCenter.y, cameraCenter.z);
-		console.log(cameraXAxis.x, cameraXAxis.y, cameraXAxis.z);
+		//console.log(cameraCenter.x, cameraCenter.y, cameraCenter.z);
+		//console.log(cameraXAxis.x, cameraXAxis.y, cameraXAxis.z);
+	}
+	
+	function updateMeshes(meshes) {
+		console.log(meshes.length);
 	}
 	
 	function animate() {

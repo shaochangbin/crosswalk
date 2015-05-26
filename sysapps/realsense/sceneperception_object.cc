@@ -7,8 +7,6 @@
 #include "xwalk/sysapps/realsense/sceneperception.h"
 #include "xwalk/sysapps/realsense/sp_controller.h"
 
-#include "pxcsession.h" // NOLINT
-
 #include <string>
 #include <sstream>
 
@@ -18,10 +16,16 @@ namespace sysapps {
 using namespace jsapi::sceneperception; // NOLINT
 
 ScenePerceptionObject::ScenePerceptionObject() :
-    started_(false) {
+    started_(false),
+    block_meshing_data_(NULL) {
   color_image_width_ = depth_image_width_ = 320;
   color_image_height_ = depth_image_height_ = 240;
   color_capture_framerate_ = depth_capture_framerate_ = 60.0;
+
+  meshing_update_info_.blockMeshesRequired = meshing_update_info_.countOfBlockMeshesRequired  = meshing_update_info_.blockMeshesRequired = 
+	meshing_update_info_.countOfVeticesRequired = meshing_update_info_.verticesRequired = meshing_update_info_.countOfFacesRequired =
+	meshing_update_info_.facesRequired = meshing_update_info_.colorsRequired = 1;
+
   handler_.Register("start",
                     base::Bind(&ScenePerceptionObject::OnStart,
                                base::Unretained(this)));
@@ -67,6 +71,8 @@ void ScenePerceptionObject::OnStart(
   
   sceneperception_controller_->PauseScenePerception(false);
   sceneperception_controller_->EnableReconstruction(true);
+  
+  block_meshing_data_ = sceneperception_controller_->CreatePXCBlockMeshingData();
 	
   if(!sceneperception_controller_->InitPipeline(this)) {
 	  scoped_ptr<base::ListValue> error(new base::ListValue());
@@ -112,6 +118,8 @@ void ScenePerceptionObject::OnStop(
   }
   started_ = false;
   sceneperception_controller_.reset();
+  if(block_meshing_data_)
+		block_meshing_data_->Release();
   scoped_ptr<base::ListValue> error(new base::ListValue());
   error->AppendString("noerror");
   info->PostResult(error.Pass());
@@ -159,6 +167,45 @@ pxcStatus ScenePerceptionObject::OnModuleProcessedFrame(
       sp->GetCameraPose(pose);
       for (int i = 0; i < 12; ++i) {
         event.pose.push_back(pose[i]);
+      }
+      
+      // Update meshes
+      if(sp->IsReconstructionUpdated()) {
+        pxcStatus status = sp->DoMeshingUpdate(block_meshing_data_, true, &meshing_update_info_);
+        if (status == PXC_STATUS_NO_ERROR) {
+          int iNumBlockMeshes = block_meshing_data_->QueryNumberOfBlockMeshes();
+      		int *bmuiFaces = block_meshing_data_->QueryFaces();
+      		float *pFVertices = block_meshing_data_->QueryVertices();
+      		PXCBlockMeshingData::PXCBlockMesh *pPXCBlockMeshData = block_meshing_data_->QueryBlockMeshes(); 
+      		for(int i = 0; i < iNumBlockMeshes; ++i, ++pPXCBlockMeshData)
+      		{
+            linked_ptr<Mesh> mesh(new Mesh);
+            std::ostringstream id;
+            id << pPXCBlockMeshData->meshId;
+            mesh->id = id.str();
+      			// create new buffers
+      			if((pPXCBlockMeshData->numVertices > 0) && (pPXCBlockMeshData->numFaces > 0))
+      			{
+      				// face indices relative to vertex buffer
+      				for (int j = 0; j < pPXCBlockMeshData->numFaces * 3; j++)
+      				{
+      					bmuiFaces[pPXCBlockMeshData->faceStartIndex + j] -= pPXCBlockMeshData->vertexStartIndex / 4;
+      				}
+              
+              float *pVertices = pFVertices + pPXCBlockMeshData->vertexStartIndex;
+              int iNumVertices = pPXCBlockMeshData->numVertices;
+              for (int k = 0; k < iNumVertices; ++k, ++pVertices) {
+                mesh->vertices.push_back(*pVertices);
+              }
+              int* pFaces = bmuiFaces + pPXCBlockMeshData->faceStartIndex;
+              int iNumFaces = pPXCBlockMeshData->numFaces;
+              for (int l = 0; l < iNumFaces; ++l, ++pFaces) {
+                mesh->faces.push_back(*pFaces);
+              }
+            }
+            event.meshes.push_back(mesh);
+          }
+        }
       }
     }
       

@@ -8,6 +8,7 @@
 #include <string>
 
 #include "pxcsensemanager.h"  // NOLINT
+#include "pxcsceneperception.h" // NOLINT
 
 #include "xwalk/sysapps/common/event_target.h"
 
@@ -46,6 +47,9 @@ class ScenePerceptionObject :
   int depth_image_width_;
   int depth_image_height_;
   float depth_capture_framerate_;
+  
+  PXCBlockMeshingData* block_meshing_data_;
+  PXCScenePerception::MeshingUpdateInfo  meshing_update_info_;
 };
 
 }  // namespace sysapps
