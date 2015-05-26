@@ -5,17 +5,20 @@
   <body>
     <p id='quality'>Quality: </p>
 	<p id='accuracy'>Accuracy: </p>
-	<p id='pose'>Pose: </p>
-	<div>
+	<div style='margin-bottom:23px;'>
 		<button id='start'>Start</button>
 		<button id='reset'>Reset</button>
 		<button id='stop'>Stop</button>
 	</div>
+	<div id='canvas'>
+	</div>
   </body>
+  <script src='js/three.js'></script>
+  <script src='js/TrackballControls.js'></script>
+  <script src="js/stats.min.js"></script>
   <script>
     var qualityElement = document.getElementById('quality');
 	var accuracyElement = document.getElementById('accuracy');
-	var poseElement = document.getElementById('pose');
 	var startButton = document.getElementById('start');
 	var resetButton = document.getElementById('reset');
 	var stopButton = document.getElementById('stop');
@@ -27,8 +30,7 @@
 		if (quality >= 0.5) {
 			qualityElement.innerHTML = 'Quality: ' + 'good';
 			accuracyElement.innerHTML = 'Accuracy: ' + e.data.accuracy;
-			pose = e.data.pose;
-			poseElement.innerHTML = 'Pose: ' + pose[0] + ', ' + pose[1] + ', ' + pose[2]; 
+			updateCameraPose(e.data.pose);
 		} else {
 			qualityElement.innerHTML = 'Quality: ' + 'bad';
 		}
@@ -46,9 +48,119 @@
 		sp.stop().then(function(e) {
 			console.log(e);
 		    qualityElement.innerHTML = 'Quality: ';
-			accuracyElement.innerHTML = 'Accuracy: ';
-			poseElement.innerHTML = 'Pose: ';});
+			accuracyElement.innerHTML = 'Accuracy: ';});
 		
 	});
+	
+	var renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setClearColor(0x101010, 1);
+    renderer.setSize(800, 600);
+    document.getElementById("canvas").appendChild(renderer.domElement);
+	
+	var stats = new Stats();
+	stats.domElement.style.position = 'absolute';
+	stats.domElement.style.top = '0px';
+	stats.domElement.style.right = '0px';
+	document.getElementById("canvas").appendChild(stats.domElement);
+	
+	var camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 500);
+    camera.position.set(0, 0, 100);
+    camera.lookAt(new THREE.Vector3(0, 0, 0));
+    var scene = new THREE.Scene();
+	
+	var controls = new THREE.TrackballControls(camera);
+
+	var x_material = new THREE.LineBasicMaterial({
+        color: 0x0000ff
+    });
+	
+	var y_material = new THREE.LineBasicMaterial({
+        color: 0x00ff00
+    });
+	
+	var z_material = new THREE.LineBasicMaterial({
+        color: 0xff0000
+    });
+	
+	var x_geometry = new THREE.Geometry();
+    x_geometry.vertices.push(new THREE.Vector3(0, 0, 0));
+    x_geometry.vertices.push(new THREE.Vector3(0, 0, 0));
+	
+	var y_geometry = new THREE.Geometry();
+    y_geometry.vertices.push(new THREE.Vector3(0, 0, 0));
+    y_geometry.vertices.push(new THREE.Vector3(0, 0, 0));
+	
+	var z_geometry = new THREE.Geometry();
+    z_geometry.vertices.push(new THREE.Vector3(0, 0, 0));
+    z_geometry.vertices.push(new THREE.Vector3(0, 0, 0));
+	
+	var z_axis = new THREE.Line(z_geometry, z_material);
+	var y_axis = new THREE.Line(y_geometry, y_material);
+	var x_axis = new THREE.Line(x_geometry, x_material);
+
+	scene.add(z_axis);
+	scene.add(y_axis);
+	scene.add(x_axis);
+
+    animate();
+	
+	function render() {
+		
+        controls.update();
+        renderer.render(scene, camera);
+    }
+	
+	function poseMultiplyVect(out, pose, vect) {
+		out.x = pose.elements[0]*vect.x + pose.elements[1]*vect.y + pose.elements[2]*vect.z + pose.elements[3]*vect.w;
+		out.y = pose.elements[4]*vect.x + pose.elements[5]*vect.y + pose.elements[6]*vect.z + pose.elements[7]*vect.w;
+		out.z = pose.elements[8]*vect.x + pose.elements[9]*vect.y + pose.elements[10]*vect.z + pose.elements[11]*vect.w;
+		out.w = vect.w;
+	}
+	
+	function updateCameraPose(cameraPoseArray) {
+		var cameraPose = new THREE.Matrix4();
+		cameraPose.set(cameraPoseArray[0], cameraPoseArray[1], cameraPoseArray[2], cameraPoseArray[3],
+		               cameraPoseArray[4], cameraPoseArray[5], cameraPoseArray[6], cameraPoseArray[7],
+					   cameraPoseArray[8], cameraPoseArray[9], cameraPoseArray[10], cameraPoseArray[11],
+					   0, 0, 0, 0);
+		var cameraCenter = new THREE.Vector3(cameraPose[3], cameraPose[7], cameraPose[11]);
+		var cameraXAxis = new THREE.Vector4(0, 0, 0, 0);
+		var xVect = new THREE.Vector4(0.16, 0.0, 0.0, 1.0);
+		poseMultiplyVect(cameraXAxis, cameraPose, xVect);
+		cameraXAxis.multiplyScalar(20);
+		var cameraYAxis = new THREE.Vector4(0, 0, 0, 0);
+		var yVect = new THREE.Vector4(0.0, 0.16, 0.0, 1.0);
+		poseMultiplyVect(cameraYAxis, cameraPose, yVect);
+		cameraYAxis.multiplyScalar(20);
+		var cameraZAxis = new THREE.Vector4(0, 0, 0, 0);
+		var zVect = new THREE.Vector4(0.0, 0.0, 0.16, 1.0);
+		poseMultiplyVect(cameraZAxis, cameraPose, zVect);
+		cameraZAxis.multiplyScalar(20);
+		
+		z_axis.geometry.dynamic = true;
+		z_axis.geometry.vertices[0] = cameraCenter;
+		z_axis.geometry.vertices[1] = new THREE.Vector3(cameraZAxis.x, cameraZAxis.y, cameraZAxis.z);
+		z_axis.geometry.verticesNeedUpdate = true;
+		
+		y_axis.geometry.dynamic = true;
+		y_axis.geometry.vertices[0] = cameraCenter;
+		y_axis.geometry.vertices[1] = new THREE.Vector3(cameraYAxis.x, cameraYAxis.y, cameraYAxis.z);
+		y_axis.geometry.verticesNeedUpdate = true;
+		
+		x_axis.geometry.dynamic = true;
+		x_axis.geometry.vertices[0] = cameraCenter;
+		x_axis.geometry.vertices[1] = new THREE.Vector3(cameraXAxis.x, cameraXAxis.y, cameraXAxis.z);
+		x_axis.geometry.verticesNeedUpdate = true;
+		
+		console.log(cameraCenter.x, cameraCenter.y, cameraCenter.z);
+		console.log(cameraXAxis.x, cameraXAxis.y, cameraXAxis.z);
+	}
+	
+	function animate() {
+	  requestAnimationFrame( animate );
+
+	  render();
+	  stats.update();
+	}
   </script>
 </html>
