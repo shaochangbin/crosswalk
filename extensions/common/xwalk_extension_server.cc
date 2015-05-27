@@ -203,6 +203,10 @@ void XWalkExtensionServer::PostMessageToJSCallback(
 
   scoped_ptr<IPC::Message> message(
       new XWalkExtensionClientMsg_PostMessageToJS(instance_id, wrapped_msg));
+  LOG(WARNING) << "message size: " << message->size();
+  Send(message.release());
+  return;
+  /*
   if (message->size() <= kInlineMessageMaxSize) {
     Send(message.release());
     return;
@@ -225,6 +229,7 @@ void XWalkExtensionServer::PostMessageToJSCallback(
 
   Send(new XWalkExtensionClientMsg_PostOutOfLineMessageToJS(handle,
                                                             message->size()));
+  */
 }
 
 void XWalkExtensionServer::SendSyncReplyToJSCallback(
