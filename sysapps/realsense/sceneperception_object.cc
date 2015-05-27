@@ -4,6 +4,7 @@
 
 #include "xwalk/sysapps/realsense/sceneperception_object.h"
 
+#include "base/logging.h"
 #include "xwalk/sysapps/realsense/sceneperception.h"
 #include "xwalk/sysapps/realsense/sp_controller.h"
 
@@ -173,38 +174,42 @@ pxcStatus ScenePerceptionObject::OnModuleProcessedFrame(
       if(sp->IsReconstructionUpdated()) {
         pxcStatus status = sp->DoMeshingUpdate(block_meshing_data_, true, &meshing_update_info_);
         if (status == PXC_STATUS_NO_ERROR) {
-          int iNumBlockMeshes = block_meshing_data_->QueryNumberOfBlockMeshes();
-      		int *bmuiFaces = block_meshing_data_->QueryFaces();
-      		float *pFVertices = block_meshing_data_->QueryVertices();
-      		PXCBlockMeshingData::PXCBlockMesh *pPXCBlockMeshData = block_meshing_data_->QueryBlockMeshes(); 
-      		for(int i = 0; i < iNumBlockMeshes; ++i, ++pPXCBlockMeshData)
-      		{
-            linked_ptr<Mesh> mesh(new Mesh);
-            std::ostringstream id;
-            id << pPXCBlockMeshData->meshId;
-            mesh->id = id.str();
-      			// create new buffers
-      			if((pPXCBlockMeshData->numVertices > 0) && (pPXCBlockMeshData->numFaces > 0))
-      			{
-      				// face indices relative to vertex buffer
-      				for (int j = 0; j < pPXCBlockMeshData->numFaces * 3; j++)
-      				{
-      					bmuiFaces[pPXCBlockMeshData->faceStartIndex + j] -= pPXCBlockMeshData->vertexStartIndex / 4;
-      				}
-              
-              float *pVertices = pFVertices + pPXCBlockMeshData->vertexStartIndex;
-              int iNumVertices = pPXCBlockMeshData->numVertices;
-              for (int k = 0; k < iNumVertices; ++k, ++pVertices) {
-                mesh->vertices.push_back(*pVertices);
-              }
-              int* pFaces = bmuiFaces + pPXCBlockMeshData->faceStartIndex;
-              int iNumFaces = pPXCBlockMeshData->numFaces;
-              for (int l = 0; l < iNumFaces; ++l, ++pFaces) {
-                mesh->faces.push_back(*pFaces);
-              }
-            }
-            event.meshes.push_back(mesh);
+          linked_ptr<Mesh> mesh(new Mesh);
+      
+      		float *pVertices = block_meshing_data_->QueryVertices();
+          int iNumVertices = block_meshing_data_->QueryNumberOfVertices();
+          for (int k = 0; k < iNumVertices; ++k) {
+            mesh->vertices.push_back(*pVertices);
+            ++pVertices;
+            mesh->vertices.push_back(*pVertices);
+            ++pVertices;
+            mesh->vertices.push_back(*pVertices);
+            ++pVertices;
+            ++pVertices; // skip confidence
           }
+          
+          unsigned char *pColors = block_meshing_data_->QueryVerticesColor();
+          for (int k = 0; k < iNumVertices; ++k) {
+            mesh->colors.push_back(*pColors);
+            ++pColors;
+            mesh->colors.push_back(*pColors);
+            ++pColors;
+            mesh->colors.push_back(*pColors);
+            ++pColors;
+          }
+      
+          int *pFaces = block_meshing_data_->QueryFaces();
+          int iNumFaces = block_meshing_data_->QueryNumberOfFaces();    
+          for (int l = 0; l < iNumFaces; ++l) {
+            mesh->faces.push_back(*pFaces);
+            ++pFaces;
+            mesh->faces.push_back(*pFaces);
+            ++pFaces;
+            mesh->faces.push_back(*pFaces);
+            ++pFaces;
+          }
+
+          event.meshes.push_back(mesh);
         }
       }
     }

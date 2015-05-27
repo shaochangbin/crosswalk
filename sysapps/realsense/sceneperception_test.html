@@ -37,11 +37,14 @@
 		}
 	};
 	
+	var meshesCreated = false;
+	
 	startButton.addEventListener('click', function(e) {
 		sp.start().then(function(e) {console.log(e);});
 	});
 	
 	resetButton.addEventListener('click', function(e) {
+		meshesCreated = false;
 		sp.reset().then(function(e) {console.log(e);});
 	});
 	
@@ -54,7 +57,7 @@
 	});
 	
 	var renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setClearColor(0x101010, 1);
+    renderer.setClearColor(0xffffff, 1);
     renderer.setSize(800, 600);
     document.getElementById("canvas").appendChild(renderer.domElement);
 	
@@ -72,15 +75,15 @@
 	var controls = new THREE.TrackballControls(camera);
 
 	var x_material = new THREE.LineBasicMaterial({
-        color: 0x0000ff
+        color: 0xff0000, linewidth: 4
     });
 	
 	var y_material = new THREE.LineBasicMaterial({
-        color: 0x00ff00
+        color: 0x00ff00, linewidth: 4
     });
 	
 	var z_material = new THREE.LineBasicMaterial({
-        color: 0xff0000
+        color: 0x0000ff, linewidth: 4
     });
 	
 	var x_geometry = new THREE.Geometry();
@@ -128,24 +131,24 @@
 		var cameraXAxis = new THREE.Vector4(0, 0, 0, 0);
 		var xVect = new THREE.Vector4(0.16, 0.0, 0.0, 1.0);
 		poseMultiplyVect(cameraXAxis, cameraPose, xVect);
-		cameraXAxis.multiplyScalar(20);
+		cameraXAxis.multiplyScalar(100);
 		var cameraYAxis = new THREE.Vector4(0, 0, 0, 0);
 		var yVect = new THREE.Vector4(0.0, 0.16, 0.0, 1.0);
 		poseMultiplyVect(cameraYAxis, cameraPose, yVect);
-		cameraYAxis.multiplyScalar(20);
+		cameraYAxis.multiplyScalar(100);
 		var cameraZAxis = new THREE.Vector4(0, 0, 0, 0);
 		var zVect = new THREE.Vector4(0.0, 0.0, 0.16, 1.0);
 		poseMultiplyVect(cameraZAxis, cameraPose, zVect);
-		cameraZAxis.multiplyScalar(20);
+		cameraZAxis.multiplyScalar(100);
 		
 		z_axis.geometry.dynamic = true;
 		z_axis.geometry.vertices[0] = cameraCenter;
-		z_axis.geometry.vertices[1] = new THREE.Vector3(cameraZAxis.x, cameraZAxis.y, cameraZAxis.z);
+		z_axis.geometry.vertices[1] = new THREE.Vector3(-cameraZAxis.x, -cameraZAxis.y, -cameraZAxis.z);
 		z_axis.geometry.verticesNeedUpdate = true;
 		
 		y_axis.geometry.dynamic = true;
 		y_axis.geometry.vertices[0] = cameraCenter;
-		y_axis.geometry.vertices[1] = new THREE.Vector3(cameraYAxis.x, cameraYAxis.y, cameraYAxis.z);
+		y_axis.geometry.vertices[1] = new THREE.Vector3(-cameraYAxis.x, -cameraYAxis.y, -cameraYAxis.z);
 		y_axis.geometry.verticesNeedUpdate = true;
 		
 		x_axis.geometry.dynamic = true;
@@ -157,8 +160,76 @@
 		//console.log(cameraXAxis.x, cameraXAxis.y, cameraXAxis.z);
 	}
 	
+	var mesh = null, wire_mesh = null, wire_material = null;
+	
 	function updateMeshes(meshes) {
+		if (meshes.length == 0)
+			return;
 		console.log(meshes.length);
+		if (!meshesCreated) {
+			meshesCreated = true;
+		
+			if (mesh) {
+				scene.remove(mesh);
+				scene.remove(wire_mesh);
+			}
+			var verticies = meshes[0].vertices;
+			var faces = meshes[0].faces;
+			var colors = meshes[0].colors;
+			//console.log(verticies);
+			//console.log(faces);
+			console.log(colors);
+			var geometry = new THREE.Geometry();
+	        var elements = verticies.length / 3;
+	        for (var i = 0; i < elements; i++) {
+	            var index = i * 3;
+	            geometry.vertices.push(new THREE.Vector3(verticies[index] * 100, verticies[index + 1]* 100, verticies[index + 2]* 100));
+	        }
+	        var elements = faces.length / 3;
+	        for (var i = 0; i < elements; i++) {
+	            var index = i * 3;
+	            geometry.faces.push(new THREE.Face3(faces[index], faces[index + 1], faces[index + 2]));
+	            var face = faces[index] * 3;
+	            geometry.faces[i].vertexColors[0] =
+	                new THREE.Color("rgb(" + colors[face] + "," + colors[face+1] + "," + colors[face+2] + ")");
+	            var face = faces[index + 1] * 3;
+	            geometry.faces[i].vertexColors[1] =
+	                new THREE.Color("rgb(" + colors[face] + "," + colors[face+1] + "," + colors[face+2] + ")");
+	            var face = faces[index + 2] * 3;
+	            geometry.faces[i].vertexColors[2] =
+	                new THREE.Color("rgb(" + colors[face] + "," + colors[face+1] + "," + colors[face+2] + ")");
+	        }
+	
+			/*
+	        var material = new THREE.MeshLambertMaterial(
+            {
+                color: 0xffffff, shading: THREE.SmoothShading,
+                vertexColors: THREE.VertexColors, side: THREE.FrontSide,
+                polygonOffset: true, polygonOffsetFactor: 1.0, polygonOffsetUnits: 4.0
+            });
+			*/
+			var material = new THREE.MeshBasicMaterial({ vertexColors: THREE.VertexColors, side: THREE.BackSide,});
+			geometry.computeFaceNormals();
+	        mesh = new THREE.Mesh(geometry, material);
+	        mesh.position.x = 0;
+	        mesh.position.y = 0;
+	        mesh.position.z = 0;
+	        mesh.rotation.z += 180 * (Math.PI / 180);
+	        mesh.rotation.y += 180 * (Math.PI / 180);
+			
+			wire_material = new THREE.MeshLambertMaterial(
+            {
+                color: 0xffffff, visible: true, wireframe: true, transparent: true, opacity: 0.15
+            });
+	        wire_mesh = new THREE.Mesh(geometry, wire_material);
+	        wire_mesh.position.copy(mesh.position);
+	        wire_mesh.rotation.copy(mesh.rotation);
+	
+	        scene.add(mesh);
+			scene.add(wire_mesh);
+		} else {
+			
+		}
 	}
 	
 	function animate() {

@@ -14,6 +14,7 @@ namespace sceneperception {
     DOMString id;
     double[] vertices;
     double[] faces;
+    double[] colors;
   };
   
   dictionary TrackingEvent {
