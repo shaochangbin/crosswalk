@@ -32,9 +32,15 @@ var ScenePerception = function() {
   this._addMethodWithPromise("start", Promise);
   this._addMethodWithPromise("stop", Promise);
   this._addMethodWithPromise("reset", Promise);
+  this._addMethodWithPromise("enableTracking", Promise);
+  this._addMethodWithPromise("disableTracking", Promise);
+  this._addMethodWithPromise("enableMeshing", Promise);
+  this._addMethodWithPromise("disableMeshing", Promise);
   
   this._addEvent("error");
+  this._addEvent("checking");
   this._addEvent("tracking");
+  this._addEvent("meshing");
 };
 
 ScenePerception.prototype = new common.EventTargetPrototype();

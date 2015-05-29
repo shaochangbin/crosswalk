@@ -29,6 +29,7 @@ class ScenePerceptionObject :
   void StopEvent(const std::string& type) override;
   
   // PXCSenseManager::Handler implementation.
+  virtual pxcStatus PXCAPI OnNewSample(pxcUID mid, PXCCapture::Sample* sample);
   virtual pxcStatus PXCAPI OnModuleProcessedFrame(pxcUID mid, PXCBase* module, PXCCapture::Sample* sample);
   virtual void PXCAPI OnStatus(pxcUID mid, pxcStatus status);
 
@@ -36,9 +37,24 @@ class ScenePerceptionObject :
   void OnStart(scoped_ptr<XWalkExtensionFunctionInfo> info);
   void OnStop(scoped_ptr<XWalkExtensionFunctionInfo> info);
   void OnReset(scoped_ptr<XWalkExtensionFunctionInfo> info);
+  void OnEnableTracking(scoped_ptr<XWalkExtensionFunctionInfo> info);
+  void OnDisableTracking(scoped_ptr<XWalkExtensionFunctionInfo> info);
+  void OnEnableMeshing(scoped_ptr<XWalkExtensionFunctionInfo> info);
+  void OnDisableMeshing(scoped_ptr<XWalkExtensionFunctionInfo> info);
   
  private:
-  bool started_;
+  enum State {
+    IDLE,
+    CHECKING,
+    TRACKING,
+    MESHING,
+  };
+  State state_;
+  
+  bool on_checking_;
+  bool on_tracking_;
+  bool on_meshing_;
+
   scoped_ptr<ScenePerceptionController> sceneperception_controller_;
   
   int color_image_width_;

@@ -2,12 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace sceneperception {
+namespace sceneperception {  
+  dictionary CheckingEvent {
+    double quality;
+  };
+  
   enum Accuracy {
     high,
     med,
     low,
     failed
+  };
+  
+  dictionary TrackingEvent {
+    double[] cameraPose;
+    Accuracy accuracy;
   };
   
   dictionary Mesh {
@@ -16,11 +25,8 @@ namespace sceneperception {
     double[] faces;
     double[] colors;
   };
-  
-  dictionary TrackingEvent {
-    double[] pose;
-    Accuracy accuracy;
-    double quality;
+
+  dictionary MeshingEvent {
     Mesh[] meshes;
   };
   
@@ -32,12 +38,18 @@ namespace sceneperception {
 
   interface Events {
     static void onerror();
+    static void onchecking();
     static void ontracking();
+    static void onmeshing();
   };
 
   interface Functions {
     static void start(Promise promise);
     static void stop(Promise promise);
     static void reset(Promise promise);
+    static void enableTracking(Promise promise);
+    static void disableTracking(Promise promise);
+    static void enableMeshing(Promise promise);
+    static void disableMeshing(Promise promise);
   };
 };
