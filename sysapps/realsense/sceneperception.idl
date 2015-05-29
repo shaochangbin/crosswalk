@@ -19,15 +19,21 @@ namespace sceneperception {
     Accuracy accuracy;
   };
   
-  dictionary Mesh {
-    DOMString id;
-    double[] vertices;
-    double[] faces;
-    double[] colors;
+  dictionary BlockMesh {
+    DOMString meshId;
+    double vertexStartIndex;
+    double numVertices;
+    double faceStartIndex;
+    double numFaces;
   };
 
   dictionary MeshingEvent {
-    Mesh[] meshes;
+    BlockMesh[] blockMeshes;
+    double numberOfVertices;
+    ArrayBuffer vertices;
+    ArrayBuffer colors;
+    double numberOfFaces;
+    ArrayBuffer faces;
   };
   
   dictionary ErrorEvent {
