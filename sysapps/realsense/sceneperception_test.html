@@ -31,6 +31,13 @@
 	var enableMeshingButton = document.getElementById('enableMeshing');
 	var disableMeshingButton = document.getElementById('disableMeshing');
 	
+	var blockMeshMap = {};
+	var mergedMesh = null;
+	var mergedMaterials;
+	var mergedGeom;
+	
+	var scene;
+	
 	var sp = new xwalk.experimental.realsense.ScenePerception();
 	sp.onchecking = function(e) {
 		var quality = e.data.quality;
@@ -45,7 +52,7 @@
 	};
 	sp.onmeshing = function(e) {
 		console.log(e.data);
-		updateMeshes(e.data);	
+		updateMeshes2(e.data);	
 	};
 	
 	var meshesCreated = false;
@@ -55,15 +62,27 @@
 	};
 	
 	resetButton.onclick = function(e) {
-		meshesCreated = false;
 		sp.reset().then(function(e) {console.log(e);});
+		removeAllMeshes();
 	};
+	
+	function removeAllMeshes() {
+		for (var id in blockMeshMap) {
+			scene.remove(blockMeshMap[id]);
+			delete blockMeshMap[id];
+		}
+		if (mergedMesh)
+			scene.remove(mergedMesh);
+		delete mergedMesh;
+		mergedMesh = null;
+	}
 	
 	stopButton.onclick = function(e) {
 		sp.stop().then(function(e) {
 			console.log(e);
 			qualityElement.innerHTML = 'Quality: ';
-		});	
+		});
+		mergeMeshes();
 	};
 	
 	enableTrackingButton.onclick = function(e) {
@@ -83,6 +102,23 @@
 	
 	disableMeshingButton.onclick = function(e) {
 		sp.disableMeshing().then(function(e) {console.log(e);});
+		mergeMeshes();
+	};
+	
+	function mergeMeshes() {
+		mergedMaterials = [];
+    	mergedGeom = new THREE.Geometry();
+		for (var id in blockMeshMap) {
+			scene.remove(blockMeshMap[id]);
+			var m = blockMeshMap[id];
+			m.updateMatrix();
+			mergedGeom.merge(m.geometry, m.matrix);
+			mergedMaterials.push(m.material);
+			scene.remove(m);
+			delete blockMeshMap[id];
+		}
+		mergedMesh = new THREE.Mesh(mergedGeom, new THREE.MeshFaceMaterial(mergedMaterials));
+    	scene.add(mergedMesh);
 	};
 	
 	var renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -99,7 +135,7 @@
 	var camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 1000);
     camera.position.set(0, 0, 3);
     camera.lookAt(new THREE.Vector3(0, 0, 0));
-    var scene = new THREE.Scene();
+    scene = new THREE.Scene();
 	
 	var controls = new THREE.TrackballControls(camera);
 
@@ -186,7 +222,7 @@
 		//console.log(cameraXAxis.x, cameraXAxis.y, cameraXAxis.z);
 	}
 	
-	var mesh = null, wire_mesh = null, wire_material = null;
+	//var mesh = null, wire_mesh = null, wire_material = null;
 	
 	function updateMeshes(meshes) {
 		if (!meshesCreated) {
@@ -257,6 +293,71 @@
 			scene.add(wire_mesh);
 		} else {
 			
+		}
+	}
+	
+	function updateMeshes2(meshes) {
+		var verticies = new Float32Array(meshes.vertices, 0, meshes.numberOfVertices * 4);
+		var colors = new Uint8Array(meshes.colors, 0, meshes.numberOfVertices * 3);
+		var faces = new Int32Array(meshes.faces, 0, meshes.numberOfFaces * 3);
+		var blockMeshes = meshes.blockMeshes;
+		console.log('blockMeshes.length: ' + blockMeshes.length);
+		for (var j = 0; j < blockMeshes.length; ++j) {
+			var blockMesh = blockMeshes[j];
+			if (blockMesh.numVertices == 0 || blockMesh.numFaces == 0)
+				continue;
+			if (blockMesh.meshId in blockMeshMap) {
+				scene.remove(blockMeshMap[blockMesh.meshId]);
+				delete blockMeshMap[blockMesh.meshId];
+			}
+			var geometry = new THREE.Geometry();
+			//console.log('mesh: ' + j + ' numVertices: ' + blockMesh.numVertices + ' numFaces: ' + blockMesh.numFaces);
+	        var elements = blockMesh.numVertices;
+			var vertexStartIndex = blockMesh.vertexStartIndex;
+	        for (var i = 0; i < elements; i++) {
+	            var index = i * 4;
+	            geometry.vertices.push(new THREE.Vector3(verticies[vertexStartIndex + index], verticies[vertexStartIndex + index + 1], verticies[vertexStartIndex + index + 2]));
+	        }
+	        var elements = blockMesh.numFaces;
+			var faceStartIndex = blockMesh.faceStartIndex;
+	        for (var i = 0; i < elements; i++) {
+	            var index = i * 3;
+				var vertexOffset = vertexStartIndex / 4;
+	            geometry.faces.push(new THREE.Face3(faces[faceStartIndex + index] - vertexOffset, faces[faceStartIndex+ index + 1] - vertexOffset, faces[faceStartIndex + index + 2] - vertexOffset));
+	            var face = faces[faceStartIndex + index] * 3;
+	            geometry.faces[i].vertexColors[0] =
+	                new THREE.Color("rgb(" + colors[face] + "," + colors[face+1] + "," + colors[face+2] + ")");
+	            var face = faces[faceStartIndex + index + 1] * 3;
+	            geometry.faces[i].vertexColors[1] =
+	                new THREE.Color("rgb(" + colors[face] + "," + colors[face+1] + "," + colors[face+2] + ")");
+	            var face = faces[faceStartIndex + index + 2] * 3;
+	            geometry.faces[i].vertexColors[2] =
+	                new THREE.Color("rgb(" + colors[face] + "," + colors[face+1] + "," + colors[face+2] + ")");
+	        }
+	
+			var material = new THREE.MeshBasicMaterial({ vertexColors: THREE.VertexColors, side: THREE.BackSide,});
+			geometry.computeFaceNormals();
+	        var mesh = new THREE.Mesh(geometry, material);
+	        mesh.position.x = 0;
+	        mesh.position.y = 0;
+	        mesh.position.z = 0;
+	        mesh.rotation.z += 180 * (Math.PI / 180);
+	        mesh.rotation.y += 180 * (Math.PI / 180);
+			var wire_material = new THREE.MeshLambertMaterial(
+            {
+                color: 0xffffff, visible: true, wireframe: true, transparent: true, opacity: 0.15
+            });
+	        var wire_mesh = new THREE.Mesh(geometry, wire_material);
+	        wire_mesh.position.x = 0;
+	        wire_mesh.position.y = 0;
+	        wire_mesh.position.z = 0;
+	        wire_mesh.rotation.z += 180 * (Math.PI / 180);
+	        wire_mesh.rotation.y += 180 * (Math.PI / 180);
+	
+	        scene.add(mesh);
+			blockMeshMap[blockMesh.meshId] = mesh;
+			//scene.add(wire_mesh);
+			//blockMeshMap[blockMesh.meshId] = wire_mesh;
 		}
 	}
 	
