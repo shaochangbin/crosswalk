@@ -12,6 +12,8 @@
 
 #include "xwalk/sysapps/common/event_target.h"
 
+#include "base/threading/thread.h"
+
 class ScenePerceptionController;
 
 namespace xwalk {
@@ -42,6 +44,9 @@ class ScenePerceptionObject :
   void OnEnableMeshing(scoped_ptr<XWalkExtensionFunctionInfo> info);
   void OnDisableMeshing(scoped_ptr<XWalkExtensionFunctionInfo> info);
   
+  void OnDoMeshingUpdate();
+  void OnMeshingResult();
+  
  private:
   enum State {
     IDLE,
@@ -54,6 +59,10 @@ class ScenePerceptionObject :
   bool on_checking_;
   bool on_tracking_;
   bool on_meshing_;
+  
+  bool doing_meshing_updating_;
+  base::Thread meshing_thread_;
+  base::MessageLoop* extension_message_loop_;
 
   scoped_ptr<ScenePerceptionController> sceneperception_controller_;
   

@@ -4,6 +4,7 @@
 
 #include "xwalk/sysapps/realsense/sceneperception_object.h"
 
+#include "base/bind.h"
 #include "base/logging.h"
 #include "xwalk/sysapps/realsense/sceneperception.h"
 #include "xwalk/sysapps/realsense/sp_controller.h"
@@ -21,6 +22,8 @@ ScenePerceptionObject::ScenePerceptionObject() :
     on_checking_(false),
     on_tracking_(false),
     on_meshing_(false),
+    doing_meshing_updating_(false),
+    meshing_thread_("MeshingThread"),
     block_meshing_data_(NULL) {
   // TODO(nhu): expose these configrations to JS
   color_image_width_ = depth_image_width_ = 320;
@@ -29,6 +32,8 @@ ScenePerceptionObject::ScenePerceptionObject() :
   meshing_update_info_.blockMeshesRequired = meshing_update_info_.countOfBlockMeshesRequired  = meshing_update_info_.blockMeshesRequired = 
 	meshing_update_info_.countOfVeticesRequired = meshing_update_info_.verticesRequired = meshing_update_info_.countOfFacesRequired =
 	meshing_update_info_.facesRequired = meshing_update_info_.colorsRequired = 1;
+  
+  extension_message_loop_ = base::MessageLoop::current();
 
   handler_.Register("start",
                     base::Bind(&ScenePerceptionObject::OnStart,
@@ -204,6 +209,15 @@ void ScenePerceptionObject::OnEnableMeshing(
     info->PostResult(error.Pass()); 
     return; 
   }
+
+  if (meshing_thread_.IsRunning()) {
+    scoped_ptr<base::ListValue> error(new base::ListValue());
+    error->AppendString("meshing thread is running");
+    info->PostResult(error.Pass()); 
+    return;  // Wrong state.
+  }
+  meshing_thread_.Start();
+
   state_ = MESHING;
   sceneperception_controller_->EnableReconstruction(true);
   scoped_ptr<base::ListValue> error(new base::ListValue());
@@ -219,6 +233,11 @@ void ScenePerceptionObject::OnDisableMeshing(
     info->PostResult(error.Pass()); 
     return; 
   }
+  if (!meshing_thread_.IsRunning()) {
+    return;  // Wrong state.
+  }
+  meshing_thread_.Stop();
+
   state_ = TRACKING;
   sceneperception_controller_->EnableReconstruction(false);
   scoped_ptr<base::ListValue> error(new base::ListValue());
@@ -286,51 +305,14 @@ pxcStatus ScenePerceptionObject::OnModuleProcessedFrame(
       if (on_meshing_) {
         // Update meshes
         if(sp->IsReconstructionUpdated()) {
-          pxcStatus status = sp->DoMeshingUpdate(block_meshing_data_, true, &meshing_update_info_);
-          if (status == PXC_STATUS_NO_ERROR) {
-            MeshingEvent event;
-        
-        		float *vertices = block_meshing_data_->QueryVertices();
-            int num_of_vertices = block_meshing_data_->QueryNumberOfVertices();
-            event.number_of_vertices = num_of_vertices;
-            std::string vertices_buffer((char*)vertices, 4 * num_of_vertices * sizeof(float));
-            std::copy(vertices_buffer.begin(), vertices_buffer.end(), back_inserter(event.vertices));
-            
-            DLOG(INFO) << "event.number_of_vertices: " << num_of_vertices;
-            DLOG(INFO) << "event.vertices: " << event.vertices.size();
-            
-            unsigned char *colors = block_meshing_data_->QueryVerticesColor();
-            std::string colors_buffer((char*)colors, 3 * num_of_vertices * sizeof(unsigned char));
-            std::copy(colors_buffer.begin(), colors_buffer.end(), back_inserter(event.colors));
-            DLOG(INFO) << "event.colors: " << event.colors.size();
-        
-            int *faces = block_meshing_data_->QueryFaces();
-            int num_of_faces = block_meshing_data_->QueryNumberOfFaces();
-            event.number_of_faces = num_of_faces;
-            std::string faces_buffer((char*)faces, 3 * num_of_faces * sizeof(int));
-            std::copy(faces_buffer.begin(), faces_buffer.end(), back_inserter(event.faces));
-            
-            DLOG(INFO) << "event.number_of_faces: " << num_of_faces;
-            DLOG(INFO) << "event.faces: " << event.faces.size();
-            
-            int num_of_blockmeshes = block_meshing_data_->QueryNumberOfBlockMeshes();
-            PXCBlockMeshingData::PXCBlockMesh *block_mesh_data = block_meshing_data_->QueryBlockMeshes();
-            for (int i = 0; i < num_of_blockmeshes; ++i, ++block_mesh_data) {
-              linked_ptr<BlockMesh> block_mesh(new BlockMesh);
-              std::ostringstream id_str;
-              id_str << block_mesh_data->meshId;
-              block_mesh->mesh_id = id_str.str();
-              block_mesh->vertex_start_index = block_mesh_data->vertexStartIndex;
-              block_mesh->num_vertices = block_mesh_data->numVertices;
-              block_mesh->face_start_index = block_mesh_data->faceStartIndex;
-              block_mesh->num_faces = block_mesh_data->numFaces;
-              event.block_meshes.push_back(block_mesh);  
-            }
-            
-            scoped_ptr<base::ListValue> eventData(new base::ListValue);
-            eventData->Append(event.ToValue().release());
-            
-            DispatchEvent("meshing", eventData.Pass());
+          DLOG(INFO) << "Mesh is updated";
+          if (!doing_meshing_updating_) {
+            doing_meshing_updating_ = true;
+            DLOG(INFO) << "Request meshing";
+            meshing_thread_.message_loop()->PostTask(
+                FROM_HERE,
+                base::Bind(&ScenePerceptionObject::OnDoMeshingUpdate,
+                           base::Unretained(this)));
           }
         }
       }
@@ -338,6 +320,67 @@ pxcStatus ScenePerceptionObject::OnModuleProcessedFrame(
   }
 
   return PXC_STATUS_NO_ERROR;
+}
+
+void ScenePerceptionObject::OnDoMeshingUpdate() {
+  DCHECK_EQ(meshing_thread_.message_loop(), base::MessageLoop::current());
+  DLOG(INFO) << "Meshing starts";
+  pxcStatus status = sceneperception_controller_->DoMeshingUpdate(block_meshing_data_, meshing_update_info_);
+  if (status == PXC_STATUS_NO_ERROR) {
+    DLOG(INFO) << "Meshing succeeds";
+     extension_message_loop_->PostTask(
+         FROM_HERE,
+         base::Bind(&ScenePerceptionObject::OnMeshingResult,
+                    base::Unretained(this)));
+  }
+}
+
+void ScenePerceptionObject::OnMeshingResult() {
+  MeshingEvent event;
+
+	float *vertices = block_meshing_data_->QueryVertices();
+  int num_of_vertices = block_meshing_data_->QueryNumberOfVertices();
+  event.number_of_vertices = num_of_vertices;
+  std::string vertices_buffer((char*)vertices, 4 * num_of_vertices * sizeof(float));
+  std::copy(vertices_buffer.begin(), vertices_buffer.end(), back_inserter(event.vertices));
+  
+  //DLOG(INFO) << "event.number_of_vertices: " << num_of_vertices;
+  //DLOG(INFO) << "event.vertices: " << event.vertices.size();
+  
+  unsigned char *colors = block_meshing_data_->QueryVerticesColor();
+  std::string colors_buffer((char*)colors, 3 * num_of_vertices * sizeof(unsigned char));
+  std::copy(colors_buffer.begin(), colors_buffer.end(), back_inserter(event.colors));
+  //DLOG(INFO) << "event.colors: " << event.colors.size();
+
+  int *faces = block_meshing_data_->QueryFaces();
+  int num_of_faces = block_meshing_data_->QueryNumberOfFaces();
+  event.number_of_faces = num_of_faces;
+  std::string faces_buffer((char*)faces, 3 * num_of_faces * sizeof(int));
+  std::copy(faces_buffer.begin(), faces_buffer.end(), back_inserter(event.faces));
+  
+  //DLOG(INFO) << "event.number_of_faces: " << num_of_faces;
+  //DLOG(INFO) << "event.faces: " << event.faces.size();
+  
+  int num_of_blockmeshes = block_meshing_data_->QueryNumberOfBlockMeshes();
+  PXCBlockMeshingData::PXCBlockMesh *block_mesh_data = block_meshing_data_->QueryBlockMeshes();
+  for (int i = 0; i < num_of_blockmeshes; ++i, ++block_mesh_data) {
+    linked_ptr<BlockMesh> block_mesh(new BlockMesh);
+    std::ostringstream id_str;
+    id_str << block_mesh_data->meshId;
+    block_mesh->mesh_id = id_str.str();
+    block_mesh->vertex_start_index = block_mesh_data->vertexStartIndex;
+    block_mesh->num_vertices = block_mesh_data->numVertices;
+    block_mesh->face_start_index = block_mesh_data->faceStartIndex;
+    block_mesh->num_faces = block_mesh_data->numFaces;
+    event.block_meshes.push_back(block_mesh);  
+  }
+  
+  scoped_ptr<base::ListValue> eventData(new base::ListValue);
+  eventData->Append(event.ToValue().release());
+  
+  DispatchEvent("meshing", eventData.Pass());
+  DLOG(INFO) << "Dispatch meshing event";
+  doing_meshing_updating_ = false;
 }
 
 void ScenePerceptionObject::OnStatus(pxcUID mid, pxcStatus status) {
