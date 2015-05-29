@@ -23,6 +23,7 @@ ScenePerceptionObject::ScenePerceptionObject() :
     on_tracking_(false),
     on_meshing_(false),
     doing_meshing_updating_(false),
+    scenemanager_thread_("SceneManagerThread"),
     meshing_thread_("MeshingThread"),
     block_meshing_data_(NULL) {
   // TODO(nhu): expose these configrations to JS
@@ -84,14 +85,28 @@ void ScenePerceptionObject::StopEvent(const std::string& type) {
 
 void ScenePerceptionObject::OnStart(
     scoped_ptr<XWalkExtensionFunctionInfo> info) {
-      
+  if (scenemanager_thread_.IsRunning()) {
+    scoped_ptr<base::ListValue> error(new base::ListValue());
+    error->AppendString("scenemanager thread is running");
+    info->PostResult(error.Pass()); 
+    return;  // Wrong state.
+  }
+  scenemanager_thread_.Start();
+  
+  scenemanager_thread_.message_loop()->PostTask(
+      FROM_HERE,
+      base::Bind(&ScenePerceptionObject::OnStartPipeline,
+                 base::Unretained(this),
+                 base::Passed(&info)));
+}
+
+void ScenePerceptionObject::OnStartPipeline(scoped_ptr<XWalkExtensionFunctionInfo> info) {
   if (state_ != IDLE) {
     scoped_ptr<base::ListValue> error(new base::ListValue());
 	  error->AppendString("state is not IDLE");
   	info->PostResult(error.Pass());
 	  return;
   }
-  
   sceneperception_controller_.reset(
       new ScenePerceptionController(color_image_width_, color_image_height_, color_capture_framerate_, 
                                     depth_image_width_, depth_image_height_, depth_capture_framerate_));
@@ -108,7 +123,7 @@ void ScenePerceptionObject::OnStart(
   
   block_meshing_data_ = sceneperception_controller_->CreatePXCBlockMeshingData();
 	
-  if(!sceneperception_controller_->InitPipeline(this)) {
+  if(!sceneperception_controller_->InitPipeline(0)) {
 	  scoped_ptr<base::ListValue> error(new base::ListValue());
 	  error->AppendString("failed to init pipeline");
   	info->PostResult(error.Pass());
@@ -127,23 +142,117 @@ void ScenePerceptionObject::OnStart(
 	  return;
   }
   
-  if (!sceneperception_controller_->StreamFrames(false)) {
-    scoped_ptr<base::ListValue> error(new base::ListValue());
-	  error->AppendString("failed to stream frames");
-  	info->PostResult(error.Pass());
-    sceneperception_controller_.reset();
-	  return;
-  }
-  
   state_ = CHECKING;
+  
+  scenemanager_thread_.message_loop()->PostTask(
+      FROM_HERE,
+      base::Bind(&ScenePerceptionObject::OnRunPipeline,
+                 base::Unretained(this)));
 
   scoped_ptr<base::ListValue> error(new base::ListValue());
   error->AppendString("noerror");
   info->PostResult(error.Pass());
 }
 
+void ScenePerceptionObject::OnRunPipeline() {
+  if (state_ == IDLE)
+    return;
+  
+  PXCImage *color = NULL, *depth = NULL;
+  float imageQuality = 0.0;
+  PXCScenePerception::TrackingAccuracy accuracy;
+  float pose[12];
+  if(!sceneperception_controller_->ProcessNextFrame(&color, &depth, pose, accuracy, imageQuality)) {
+		ErrorEvent event;
+    event.status = "fail to process next frame";
+
+    scoped_ptr<base::ListValue> eventData(new base::ListValue);
+    eventData->Append(event.ToValue().release());
+
+    DispatchEvent("error", eventData.Pass());
+    
+    sceneperception_controller_.reset();
+    state_ = IDLE;
+    return;
+	}
+  
+  if (state_ == CHECKING) {
+    if (on_checking_) {
+      CheckingEvent event;
+      event.quality = imageQuality;
+      scoped_ptr<base::ListValue> eventData(new base::ListValue);
+      eventData->Append(event.ToValue().release());
+      
+      DispatchEvent("checking", eventData.Pass());
+    }
+  }
+  
+  if (state_ == TRACKING || state_ == MESHING) {
+    if (on_tracking_) {
+      TrackingEvent event;
+      event.accuracy = ACCURACY_NONE;
+      switch(accuracy) {
+        case PXCScenePerception::HIGH:
+          event.accuracy = ACCURACY_HIGH;
+          break;
+        case PXCScenePerception::MED:
+          event.accuracy = ACCURACY_MED;
+          break;
+        case PXCScenePerception::LOW:
+          event.accuracy = ACCURACY_LOW;
+          break;
+        case PXCScenePerception::FAILED:
+          event.accuracy = ACCURACY_FAILED;
+          break;
+      }
+
+      for (int i = 0; i < 12; ++i) {
+        event.camera_pose.push_back(pose[i]);
+      }
+      
+      scoped_ptr<base::ListValue> eventData(new base::ListValue);
+      eventData->Append(event.ToValue().release());
+      
+      DispatchEvent("tracking", eventData.Pass());
+    }
+  }
+  
+  if (state_ == MESHING) { 
+    if (on_meshing_) {
+      // Update meshes
+      if(sceneperception_controller_->QueryScenePerception()->IsReconstructionUpdated()) {
+        DLOG(INFO) << "Mesh is updated";
+        if (!doing_meshing_updating_) {
+          doing_meshing_updating_ = true;
+          DLOG(INFO) << "Request meshing";
+          meshing_thread_.message_loop()->PostTask(
+              FROM_HERE,
+              base::Bind(&ScenePerceptionObject::OnDoMeshingUpdate,
+                         base::Unretained(this)));
+        }
+      }
+    }
+  }
+  
+  sceneperception_controller_->CleanupFrame();
+  
+  scenemanager_thread_.message_loop()->PostTask(
+      FROM_HERE,
+      base::Bind(&ScenePerceptionObject::OnRunPipeline,
+                 base::Unretained(this)));
+}
+
 void ScenePerceptionObject::OnStop(
     scoped_ptr<XWalkExtensionFunctionInfo> info) {
+  scenemanager_thread_.message_loop()->PostTask(
+      FROM_HERE,
+      base::Bind(&ScenePerceptionObject::OnStopPipeline,
+                 base::Unretained(this),
+                 base::Passed(&info)));
+  scenemanager_thread_.Stop();
+}
+
+void ScenePerceptionObject::OnStopPipeline(scoped_ptr<XWalkExtensionFunctionInfo> info) {
   if (state_ == IDLE) {
     scoped_ptr<base::ListValue> error(new base::ListValue());
     error->AppendString("state is IDLE");
@@ -161,6 +270,14 @@ void ScenePerceptionObject::OnStop(
 
 void ScenePerceptionObject::OnReset(
     scoped_ptr<XWalkExtensionFunctionInfo> info) {
+  scenemanager_thread_.message_loop()->PostTask(
+    FROM_HERE,
+    base::Bind(&ScenePerceptionObject::OnResetScenePerception,
+               base::Unretained(this),
+               base::Passed(&info)));
+}
+
+void ScenePerceptionObject::OnResetScenePerception(scoped_ptr<XWalkExtensionFunctionInfo> info) {
   if (state_ == IDLE) {
     scoped_ptr<base::ListValue> error(new base::ListValue());
     error->AppendString("state is IDLE");
@@ -171,31 +288,83 @@ void ScenePerceptionObject::OnReset(
   block_meshing_data_->Reset();
 }
 
-void ScenePerceptionObject::OnEnableTracking(
-    scoped_ptr<XWalkExtensionFunctionInfo> info) {
-  if (state_ != CHECKING) {
-    scoped_ptr<base::ListValue> error(new base::ListValue());
-    error->AppendString("state is not CHECKING");
-    info->PostResult(error.Pass()); 
-    return; 
+void ScenePerceptionObject::OnPauseScenePerception(bool pause, scoped_ptr<XWalkExtensionFunctionInfo> info) {
+  if (!pause) {
+    if (state_ != CHECKING) {
+      scoped_ptr<base::ListValue> error(new base::ListValue());
+      error->AppendString("state is not CHECKING");
+      info->PostResult(error.Pass()); 
+      return; 
+    }
+    state_ = TRACKING;
+  } else {
+    if (state_ != TRACKING) {
+      scoped_ptr<base::ListValue> error(new base::ListValue());
+      error->AppendString("state is not TRACKING");
+      info->PostResult(error.Pass()); 
+      return; 
+    }
+    state_ = CHECKING;
   }
-  state_ = TRACKING;
-  sceneperception_controller_->PauseScenePerception(false);
+  sceneperception_controller_->PauseScenePerception(pause);
   scoped_ptr<base::ListValue> error(new base::ListValue());
   error->AppendString("noerror");
   info->PostResult(error.Pass());
 }
 
+void ScenePerceptionObject::OnEnableTracking(
+    scoped_ptr<XWalkExtensionFunctionInfo> info) {
+  scenemanager_thread_.message_loop()->PostTask(
+      FROM_HERE,
+      base::Bind(&ScenePerceptionObject::OnPauseScenePerception,
+                 base::Unretained(this),
+                 false,
+                 base::Passed(&info)));
+}
+
 void ScenePerceptionObject::OnDisableTracking(
     scoped_ptr<XWalkExtensionFunctionInfo> info) {
-  if (state_ != TRACKING) {
-    scoped_ptr<base::ListValue> error(new base::ListValue());
-    error->AppendString("state is not TRACKING");
-    info->PostResult(error.Pass()); 
-    return; 
+  scenemanager_thread_.message_loop()->PostTask(
+      FROM_HERE,
+      base::Bind(&ScenePerceptionObject::OnPauseScenePerception,
+                 base::Unretained(this),
+                 true,
+                 base::Passed(&info)));
+}
+
+void ScenePerceptionObject::OnEnableReconstruction(bool enable, scoped_ptr<XWalkExtensionFunctionInfo> info) {
+  if (enable) {
+    if (state_ != TRACKING) {
+      scoped_ptr<base::ListValue> error(new base::ListValue());
+      error->AppendString("state is not TRACKING");
+      info->PostResult(error.Pass()); 
+      return; 
+    }
+  
+    if (meshing_thread_.IsRunning()) {
+      scoped_ptr<base::ListValue> error(new base::ListValue());
+      error->AppendString("meshing thread is running");
+      info->PostResult(error.Pass()); 
+      return;  // Wrong state.
+    }
+    meshing_thread_.Start();
+  
+    state_ = MESHING;
+  } else {
+    if (state_ != MESHING) {
+      scoped_ptr<base::ListValue> error(new base::ListValue());
+      error->AppendString("state is not MESHING");
+      info->PostResult(error.Pass()); 
+      return; 
+    }
+    if (!meshing_thread_.IsRunning()) {
+      return;  // Wrong state.
+    }
+    meshing_thread_.Stop();
+  
+    state_ = TRACKING;
   }
-  state_ = CHECKING;
-  sceneperception_controller_->PauseScenePerception(true);
+  sceneperception_controller_->EnableReconstruction(enable);
   scoped_ptr<base::ListValue> error(new base::ListValue());
   error->AppendString("noerror");
   info->PostResult(error.Pass());
@@ -203,122 +372,31 @@ void ScenePerceptionObject::OnDisableTracking(
 
 void ScenePerceptionObject::OnEnableMeshing(
     scoped_ptr<XWalkExtensionFunctionInfo> info) {
-  if (state_ != TRACKING) {
-    scoped_ptr<base::ListValue> error(new base::ListValue());
-    error->AppendString("state is not TRACKING");
-    info->PostResult(error.Pass()); 
-    return; 
-  }
-
-  if (meshing_thread_.IsRunning()) {
-    scoped_ptr<base::ListValue> error(new base::ListValue());
-    error->AppendString("meshing thread is running");
-    info->PostResult(error.Pass()); 
-    return;  // Wrong state.
-  }
-  meshing_thread_.Start();
-
-  state_ = MESHING;
-  sceneperception_controller_->EnableReconstruction(true);
-  scoped_ptr<base::ListValue> error(new base::ListValue());
-  error->AppendString("noerror");
-  info->PostResult(error.Pass());
+  scenemanager_thread_.message_loop()->PostTask(
+      FROM_HERE,
+      base::Bind(&ScenePerceptionObject::OnEnableReconstruction,
+                 base::Unretained(this),
+                 true,
+                 base::Passed(&info)));
 }
 
 void ScenePerceptionObject::OnDisableMeshing(
     scoped_ptr<XWalkExtensionFunctionInfo> info) {
-  if (state_ != MESHING) {
-    scoped_ptr<base::ListValue> error(new base::ListValue());
-    error->AppendString("state is not MESHING");
-    info->PostResult(error.Pass()); 
-    return; 
-  }
-  if (!meshing_thread_.IsRunning()) {
-    return;  // Wrong state.
-  }
-  meshing_thread_.Stop();
-
-  state_ = TRACKING;
-  sceneperception_controller_->EnableReconstruction(false);
-  scoped_ptr<base::ListValue> error(new base::ListValue());
-  error->AppendString("noerror");
-  info->PostResult(error.Pass());
+  scenemanager_thread_.message_loop()->PostTask(
+      FROM_HERE,
+      base::Bind(&ScenePerceptionObject::OnEnableReconstruction,
+                 base::Unretained(this),
+                 false,
+                 base::Passed(&info)));
 }
 
 pxcStatus ScenePerceptionObject::OnNewSample(
     pxcUID mid, PXCCapture::Sample* sample) {
-  if (state_ == CHECKING) {
-    if (on_checking_) {
-      CheckingEvent event;
-      float imageQuality = sceneperception_controller_->QueryScenePerception()->CheckSceneQuality(sample);
-      event.quality = imageQuality;
-      scoped_ptr<base::ListValue> eventData(new base::ListValue);
-      eventData->Append(event.ToValue().release());
-      
-      DispatchEvent("checking", eventData.Pass());
-    }
-  }
   return PXC_STATUS_NO_ERROR;
 }
 
 pxcStatus ScenePerceptionObject::OnModuleProcessedFrame(
     pxcUID mid, PXCBase* module, PXCCapture::Sample* sample) {
-  if (mid == PXCScenePerception::CUID) {
-    PXCScenePerception *sp = module->QueryInstance<PXCScenePerception>();
-    
-    if (state_ == TRACKING || state_ == MESHING) {
-      if (on_tracking_) {
-        TrackingEvent event;
-    
-        PXCScenePerception::TrackingAccuracy accuracy =
-            sp->QueryTrackingAccuracy();
-        event.accuracy = ACCURACY_NONE;
-        switch(accuracy) {
-          case PXCScenePerception::HIGH:
-            event.accuracy = ACCURACY_HIGH;
-            break;
-          case PXCScenePerception::MED:
-            event.accuracy = ACCURACY_MED;
-            break;
-          case PXCScenePerception::LOW:
-            event.accuracy = ACCURACY_LOW;
-            break;
-          case PXCScenePerception::FAILED:
-            event.accuracy = ACCURACY_FAILED;
-            break;
-        }
-      
-        float pose[12];
-        sp->GetCameraPose(pose);
-        for (int i = 0; i < 12; ++i) {
-          event.camera_pose.push_back(pose[i]);
-        }
-        
-        scoped_ptr<base::ListValue> eventData(new base::ListValue);
-        eventData->Append(event.ToValue().release());
-        
-        DispatchEvent("tracking", eventData.Pass());
-      }
-    }
-    
-    if (state_ == MESHING) { 
-      if (on_meshing_) {
-        // Update meshes
-        if(sp->IsReconstructionUpdated()) {
-          DLOG(INFO) << "Mesh is updated";
-          if (!doing_meshing_updating_) {
-            doing_meshing_updating_ = true;
-            DLOG(INFO) << "Request meshing";
-            meshing_thread_.message_loop()->PostTask(
-                FROM_HERE,
-                base::Bind(&ScenePerceptionObject::OnDoMeshingUpdate,
-                           base::Unretained(this)));
-          }
-        }
-      }
-    }
-  }
-
   return PXC_STATUS_NO_ERROR;
 }
 

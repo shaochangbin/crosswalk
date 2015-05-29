@@ -44,9 +44,18 @@ class ScenePerceptionObject :
   void OnEnableMeshing(scoped_ptr<XWalkExtensionFunctionInfo> info);
   void OnDisableMeshing(scoped_ptr<XWalkExtensionFunctionInfo> info);
   
-  void OnDoMeshingUpdate();
+  // Run on scenemanager_thread_;
+  void OnStartPipeline(scoped_ptr<XWalkExtensionFunctionInfo> info);
+  void OnStopPipeline(scoped_ptr<XWalkExtensionFunctionInfo> info);
+  void OnRunPipeline();
+  void OnResetScenePerception(scoped_ptr<XWalkExtensionFunctionInfo> info);
+  void OnPauseScenePerception(bool pause, scoped_ptr<XWalkExtensionFunctionInfo> info);
+  void OnEnableReconstruction(bool enable, scoped_ptr<XWalkExtensionFunctionInfo> info);
   void OnMeshingResult();
   
+  // Run on meshing_thread_;
+  void OnDoMeshingUpdate();
+
  private:
   enum State {
     IDLE,
@@ -61,6 +70,7 @@ class ScenePerceptionObject :
   bool on_meshing_;
   
   bool doing_meshing_updating_;
+  base::Thread scenemanager_thread_;
   base::Thread meshing_thread_;
   base::MessageLoop* extension_message_loop_;
 
