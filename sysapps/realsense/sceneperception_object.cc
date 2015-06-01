@@ -34,6 +34,8 @@ ScenePerceptionObject::ScenePerceptionObject() :
 	meshing_update_info_.countOfVeticesRequired = meshing_update_info_.verticesRequired = meshing_update_info_.countOfFacesRequired =
 	meshing_update_info_.facesRequired = meshing_update_info_.colorsRequired = 1;
   
+  last_meshing_time_ = base::TimeTicks::Now();
+  
   handler_.Register("start",
                     base::Bind(&ScenePerceptionObject::OnStart,
                                base::Unretained(this)));
@@ -225,9 +227,9 @@ void ScenePerceptionObject::OnRunPipeline() {
   if (state_ == MESHING) { 
     if (on_meshing_) {
       // Update meshes
-      if(sceneperception_controller_->QueryScenePerception()->IsReconstructionUpdated()) {
+      if(!doing_meshing_updating_ && sceneperception_controller_->QueryScenePerception()->IsReconstructionUpdated()) {
         DLOG(INFO) << "Mesh is updated";
-        if (!doing_meshing_updating_) {
+        if (base::TimeTicks::Now() - last_meshing_time_ > base::TimeDelta::FromMilliseconds(1000)) {
           doing_meshing_updating_ = true;
           DLOG(INFO) << "Request meshing";
           meshing_thread_.message_loop()->PostTask(
@@ -418,50 +420,50 @@ void ScenePerceptionObject::OnDoMeshingUpdate() {
   if (status == PXC_STATUS_NO_ERROR) {
     DLOG(INFO) << "Meshing succeeds";
     
-      MeshingEvent event;
+    MeshingEvent event;
 
-	float *vertices = block_meshing_data_->QueryVertices();
-  int num_of_vertices = block_meshing_data_->QueryNumberOfVertices();
-  event.number_of_vertices = num_of_vertices;
-  std::string vertices_buffer((char*)vertices, 4 * num_of_vertices * sizeof(float));
-  std::copy(vertices_buffer.begin(), vertices_buffer.end(), back_inserter(event.vertices));
-  
-  //DLOG(INFO) << "event.number_of_vertices: " << num_of_vertices;
-  //DLOG(INFO) << "event.vertices: " << event.vertices.size();
-  
-  unsigned char *colors = block_meshing_data_->QueryVerticesColor();
-  std::string colors_buffer((char*)colors, 3 * num_of_vertices * sizeof(unsigned char));
-  std::copy(colors_buffer.begin(), colors_buffer.end(), back_inserter(event.colors));
-  //DLOG(INFO) << "event.colors: " << event.colors.size();
-
-  int *faces = block_meshing_data_->QueryFaces();
-  int num_of_faces = block_meshing_data_->QueryNumberOfFaces();
-  event.number_of_faces = num_of_faces;
-  std::string faces_buffer((char*)faces, 3 * num_of_faces * sizeof(int));
-  std::copy(faces_buffer.begin(), faces_buffer.end(), back_inserter(event.faces));
-  
-  //DLOG(INFO) << "event.number_of_faces: " << num_of_faces;
-  //DLOG(INFO) << "event.faces: " << event.faces.size();
-  
-  int num_of_blockmeshes = block_meshing_data_->QueryNumberOfBlockMeshes();
-  PXCBlockMeshingData::PXCBlockMesh *block_mesh_data = block_meshing_data_->QueryBlockMeshes();
-  for (int i = 0; i < num_of_blockmeshes; ++i, ++block_mesh_data) {
-    linked_ptr<BlockMesh> block_mesh(new BlockMesh);
-    std::ostringstream id_str;
-    id_str << block_mesh_data->meshId;
-    block_mesh->mesh_id = id_str.str();
-    block_mesh->vertex_start_index = block_mesh_data->vertexStartIndex;
-    block_mesh->num_vertices = block_mesh_data->numVertices;
-    block_mesh->face_start_index = block_mesh_data->faceStartIndex;
-    block_mesh->num_faces = block_mesh_data->numFaces;
-    event.block_meshes.push_back(block_mesh);  
-  }
-  
-  scoped_ptr<base::ListValue> eventData(new base::ListValue);
-  eventData->Append(event.ToValue().release());
-  
-  DispatchEvent("meshing", eventData.Pass());
-  DLOG(INFO) << "Dispatch meshing event";
+    float *vertices = block_meshing_data_->QueryVertices();
+    int num_of_vertices = block_meshing_data_->QueryNumberOfVertices();
+    event.number_of_vertices = num_of_vertices;
+    std::string vertices_buffer((char*)vertices, 4 * num_of_vertices * sizeof(float));
+    std::copy(vertices_buffer.begin(), vertices_buffer.end(), back_inserter(event.vertices));
+    
+    //DLOG(INFO) << "event.number_of_vertices: " << num_of_vertices;
+    //DLOG(INFO) << "event.vertices: " << event.vertices.size();
+    
+    unsigned char *colors = block_meshing_data_->QueryVerticesColor();
+    std::string colors_buffer((char*)colors, 3 * num_of_vertices * sizeof(unsigned char));
+    std::copy(colors_buffer.begin(), colors_buffer.end(), back_inserter(event.colors));
+    //DLOG(INFO) << "event.colors: " << event.colors.size();
+    
+    int *faces = block_meshing_data_->QueryFaces();
+    int num_of_faces = block_meshing_data_->QueryNumberOfFaces();
+    event.number_of_faces = num_of_faces;
+    std::string faces_buffer((char*)faces, 3 * num_of_faces * sizeof(int));
+    std::copy(faces_buffer.begin(), faces_buffer.end(), back_inserter(event.faces));
+    
+    //DLOG(INFO) << "event.number_of_faces: " << num_of_faces;
+    //DLOG(INFO) << "event.faces: " << event.faces.size();
+    
+    int num_of_blockmeshes = block_meshing_data_->QueryNumberOfBlockMeshes();
+    PXCBlockMeshingData::PXCBlockMesh *block_mesh_data = block_meshing_data_->QueryBlockMeshes();
+    for (int i = 0; i < num_of_blockmeshes; ++i, ++block_mesh_data) {
+      linked_ptr<BlockMesh> block_mesh(new BlockMesh);
+      std::ostringstream id_str;
+      id_str << block_mesh_data->meshId;
+      block_mesh->mesh_id = id_str.str();
+      block_mesh->vertex_start_index = block_mesh_data->vertexStartIndex;
+      block_mesh->num_vertices = block_mesh_data->numVertices;
+      block_mesh->face_start_index = block_mesh_data->faceStartIndex;
+      block_mesh->num_faces = block_mesh_data->numFaces;
+      event.block_meshes.push_back(block_mesh);  
+    }
+    
+    scoped_ptr<base::ListValue> eventData(new base::ListValue);
+    eventData->Append(event.ToValue().release());
+    
+    DispatchEvent("meshing", eventData.Pass());
+    DLOG(INFO) << "Dispatch meshing event";
   
     scenemanager_thread_.message_loop()->PostTask(
         FROM_HERE,
@@ -473,6 +475,7 @@ void ScenePerceptionObject::OnDoMeshingUpdate() {
 void ScenePerceptionObject::OnMeshingResult() {
   DCHECK_EQ(scenemanager_thread_.message_loop(), base::MessageLoop::current());
 
+  last_meshing_time_ = base::TimeTicks::Now();
   doing_meshing_updating_ = false;
 }
 

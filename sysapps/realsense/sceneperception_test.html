@@ -32,9 +32,9 @@
 	var disableMeshingButton = document.getElementById('disableMeshing');
 	
 	var blockMeshMap = {};
-	var mergedMesh = null;
-	var mergedMaterials;
-	var mergedGeom;
+	var totalMesh = null;
+	var totalMaterials;
+	var totalGeom;
 	
 	var scene;
 	
@@ -52,7 +52,8 @@
 	};
 	sp.onmeshing = function(e) {
 		console.log(e.data);
-		updateMeshes2(e.data);	
+		var func = updateMeshes2.bind(this, e.data);
+		setTimeout(func, 0);
 	};
 	
 	var meshesCreated = false;
@@ -71,10 +72,10 @@
 			scene.remove(blockMeshMap[id]);
 			delete blockMeshMap[id];
 		}
-		if (mergedMesh)
-			scene.remove(mergedMesh);
-		delete mergedMesh;
-		mergedMesh = null;
+		if (totalMesh)
+			scene.remove(totalMesh);
+		delete totalMesh;
+		totalMesh = null;
 	}
 	
 	stopButton.onclick = function(e) {
@@ -82,7 +83,6 @@
 			console.log(e);
 			qualityElement.innerHTML = 'Quality: ';
 		});
-		mergeMeshes();
 	};
 	
 	enableTrackingButton.onclick = function(e) {
@@ -101,25 +101,32 @@
 	};
 	
 	disableMeshingButton.onclick = function(e) {
-		sp.disableMeshing().then(function(e) {console.log(e);});
-		mergeMeshes();
+		sp.disableMeshing().then(function(e) {console.log(e);mergeMeshes();});
 	};
 	
+	var timeout = null;
+	
 	function mergeMeshes() {
-		mergedMaterials = [];
-    	mergedGeom = new THREE.Geometry();
+		if (blockMeshMap.length == 0)
+			return;
+		totalMaterials = [];
+    	totalGeom = new THREE.Geometry();
 		for (var id in blockMeshMap) {
-			scene.remove(blockMeshMap[id]);
+			//scene.remove(blockMeshMap[id]);
 			var m = blockMeshMap[id];
 			m.updateMatrix();
-			mergedGeom.merge(m.geometry, m.matrix);
-			mergedMaterials.push(m.material);
-			scene.remove(m);
-			delete blockMeshMap[id];
+			totalGeom.merge(m.geometry, m.matrix);
+			totalMaterials.push(m.material);
+			//scene.remove(m);
+			//delete blockMeshMap[id];
 		}
-		mergedMesh = new THREE.Mesh(mergedGeom, new THREE.MeshFaceMaterial(mergedMaterials));
-    	scene.add(mergedMesh);
+		if (totalMesh)
+			scene.remove(totalMesh)
+		totalMesh = new THREE.Mesh(totalGeom, new THREE.MeshFaceMaterial(totalMaterials));
+    	scene.add(totalMesh);
+		timeout = null;
 	};
+
 	
 	var renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setClearColor(0xffffff, 1);
@@ -297,6 +304,7 @@
 	}
 	
 	function updateMeshes2(meshes) {
+		console.time('updateMeshes2');
 		var verticies = new Float32Array(meshes.vertices, 0, meshes.numberOfVertices * 4);
 		var colors = new Uint8Array(meshes.colors, 0, meshes.numberOfVertices * 3);
 		var faces = new Int32Array(meshes.faces, 0, meshes.numberOfFaces * 3);
@@ -307,7 +315,7 @@
 			if (blockMesh.numVertices == 0 || blockMesh.numFaces == 0)
 				continue;
 			if (blockMesh.meshId in blockMeshMap) {
-				scene.remove(blockMeshMap[blockMesh.meshId]);
+				//scene.remove(blockMeshMap[blockMesh.meshId]);
 				delete blockMeshMap[blockMesh.meshId];
 			}
 			var geometry = new THREE.Geometry();
@@ -354,11 +362,17 @@
 	        wire_mesh.rotation.z += 180 * (Math.PI / 180);
 	        wire_mesh.rotation.y += 180 * (Math.PI / 180);
 	
-	        scene.add(mesh);
+	        //scene.add(mesh);
 			blockMeshMap[blockMesh.meshId] = mesh;
+			
 			//scene.add(wire_mesh);
 			//blockMeshMap[blockMesh.meshId] = wire_mesh;
 		}
+		
+		if (timeout === null) {
+			timeout = setTimeout(mergeMeshes, 1000);
+		}
+		console.timeEnd('updateMeshes2');
 	}
 	
 	function animate() {
