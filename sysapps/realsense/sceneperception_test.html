@@ -129,7 +129,7 @@
 
 	
 	var renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setClearColor(0xffffff, 1);
+    renderer.setClearColor(0x000000, 1);
     renderer.setSize(640, 480);
     document.getElementById("canvas").appendChild(renderer.domElement);
 	
@@ -229,79 +229,60 @@
 		//console.log(cameraXAxis.x, cameraXAxis.y, cameraXAxis.z);
 	}
 	
-	//var mesh = null, wire_mesh = null, wire_material = null;
-	
 	function updateMeshes(meshes) {
-		if (!meshesCreated) {
-			meshesCreated = true;
-		
-			if (mesh) {
-				scene.remove(mesh);
-				scene.remove(wire_mesh);
-			}
-			var verticies = new Float32Array(meshes.vertices, 0, meshes.numberOfVertices * 4);
-			console.log('meshes.vertices: ' + meshes.vertices.byteLength);
-			console.log('meshes.numberOfVertices: ' + meshes.numberOfVertices);
-			console.log('vertices: ' + verticies.length);
-			var colors = new Uint8Array(meshes.colors, 0, meshes.numberOfVertices * 3);
-			console.log('meshes.colors: ' + meshes.colors.byteLength);
-			console.log('colors: ' + colors.length);
-			var faces = new Int32Array(meshes.faces, 0, meshes.numberOfFaces * 3);
-			console.log('meshes.faces: ' + meshes.faces.byteLength);
-			console.log('meshes.numberOfFaces: ' + meshes.numberOfFaces);
-			console.log('faces: ' + faces.length);
-			var geometry = new THREE.Geometry();
-	        var elements = verticies.length / 4;
-	        for (var i = 0; i < elements; i++) {
-	            var index = i * 4;
-	            geometry.vertices.push(new THREE.Vector3(verticies[index], verticies[index + 1], verticies[index + 2]));
-	        }
-	        var elements = faces.length / 3;
-	        for (var i = 0; i < elements; i++) {
-	            var index = i * 3;
-	            geometry.faces.push(new THREE.Face3(faces[index], faces[index + 1], faces[index + 2]));
-	            var face = faces[index] * 3;
-	            geometry.faces[i].vertexColors[0] =
-	                new THREE.Color("rgb(" + colors[face] + "," + colors[face+1] + "," + colors[face+2] + ")");
-	            var face = faces[index + 1] * 3;
-	            geometry.faces[i].vertexColors[1] =
-	                new THREE.Color("rgb(" + colors[face] + "," + colors[face+1] + "," + colors[face+2] + ")");
-	            var face = faces[index + 2] * 3;
-	            geometry.faces[i].vertexColors[2] =
-	                new THREE.Color("rgb(" + colors[face] + "," + colors[face+1] + "," + colors[face+2] + ")");
-	        }
-	
-			/*
-	        var material = new THREE.MeshLambertMaterial(
-            {
-                color: 0xffffff, shading: THREE.SmoothShading,
-                vertexColors: THREE.VertexColors, side: THREE.FrontSide,
-                polygonOffset: true, polygonOffsetFactor: 1.0, polygonOffsetUnits: 4.0
-            });
-			*/
-			var material = new THREE.MeshBasicMaterial({ vertexColors: THREE.VertexColors, side: THREE.BackSide,});
-			geometry.computeFaceNormals();
-	        mesh = new THREE.Mesh(geometry, material);
-	        mesh.position.x = 0;
-	        mesh.position.y = 0;
-	        mesh.position.z = 0;
-	        mesh.rotation.z += 180 * (Math.PI / 180);
-	        mesh.rotation.y += 180 * (Math.PI / 180);
-			
-			wire_material = new THREE.MeshLambertMaterial(
-            {
-                color: 0xffffff, visible: true, wireframe: true, transparent: true, opacity: 0.15
-            });
-	        wire_mesh = new THREE.Mesh(geometry, wire_material);
-	        wire_mesh.position.copy(mesh.position);
-	        wire_mesh.rotation.copy(mesh.rotation);
-	
-	        scene.add(mesh);
-			scene.add(wire_mesh);
-		} else {
-			
-		}
-	}
+		console.time('updateMeshes');
+		var verticies = new Float32Array(meshes.vertices, 0, meshes.numberOfVertices * 4);
+		console.log('meshes.vertices: ' + meshes.vertices.byteLength);
+		console.log('meshes.numberOfVertices: ' + meshes.numberOfVertices);
+		console.log('vertices: ' + verticies.length);
+		var colors = new Uint8Array(meshes.colors, 0, meshes.numberOfVertices * 3);
+		console.log('meshes.colors: ' + meshes.colors.byteLength);
+		console.log('colors: ' + colors.length);
+		var faces = new Int32Array(meshes.faces, 0, meshes.numberOfFaces * 3);
+		console.log('meshes.faces: ' + meshes.faces.byteLength);
+		console.log('meshes.numberOfFaces: ' + meshes.numberOfFaces);
+		console.log('faces: ' + faces.length);
+		var geometry = new THREE.Geometry();
+        var elements = verticies.length / 4;
+        for (var i = 0; i < elements; i++) {
+            var index = i * 4;
+            geometry.vertices.push(new THREE.Vector3(verticies[index], verticies[index + 1], verticies[index + 2]));
+        }
+        var elements = faces.length / 3;
+        for (var i = 0; i < elements; i++) {
+            var index = i * 3;
+            geometry.faces.push(new THREE.Face3(faces[index], faces[index + 1], faces[index + 2]));
+            var face = faces[index] * 3;
+            geometry.faces[i].vertexColors[0] =
+                new THREE.Color("rgb(" + colors[face] + "," + colors[face+1] + "," + colors[face+2] + ")");
+            var face = faces[index + 1] * 3;
+            geometry.faces[i].vertexColors[1] =
+                new THREE.Color("rgb(" + colors[face] + "," + colors[face+1] + "," + colors[face+2] + ")");
+            var face = faces[index + 2] * 3;
+            geometry.faces[i].vertexColors[2] =
+                new THREE.Color("rgb(" + colors[face] + "," + colors[face+1] + "," + colors[face+2] + ")");
+        }
+
+		/*
+        var material = new THREE.MeshLambertMaterial(
+        {
+            color: 0xffffff, shading: THREE.SmoothShading,
+            vertexColors: THREE.VertexColors, side: THREE.FrontSide,
+            polygonOffset: true, polygonOffsetFactor: 1.0, polygonOffsetUnits: 4.0
+        });
+		*/
+		var material = new THREE.MeshBasicMaterial({ vertexColors: THREE.VertexColors, side: THREE.BackSide,});
+		geometry.computeFaceNormals();
+        var mesh = new THREE.Mesh(geometry, material);
+        mesh.position.x = 0;
+        mesh.position.y = 0;
+        mesh.position.z = 0;
+        mesh.rotation.z += 180 * (Math.PI / 180);
+        mesh.rotation.y += 180 * (Math.PI / 180);
+
+        scene.add(mesh);
+		console.timeEnd('updateMeshes');
+	};
 	
 	function updateMeshes2(meshes) {
 		console.time('updateMeshes2');
@@ -370,7 +351,7 @@
 		}
 		
 		if (timeout === null) {
-			timeout = setTimeout(mergeMeshes, 1000);
+			timeout = setTimeout(mergeMeshes, 250);
 		}
 		console.timeEnd('updateMeshes2');
 	}
