@@ -59,6 +59,9 @@ ScenePerceptionObject::ScenePerceptionObject() :
 }
 
 ScenePerceptionObject::~ScenePerceptionObject() {
+  if (state_ != IDLE) {
+    OnStop(NULL);
+  }
 }
 
 void ScenePerceptionObject::StartEvent(const std::string& type) {
@@ -273,9 +276,11 @@ void ScenePerceptionObject::OnStopAndDestroyPipeline(scoped_ptr<XWalkExtensionFu
   sceneperception_controller_.reset();
   if(block_meshing_data_)
 		block_meshing_data_->Release();
-  scoped_ptr<base::ListValue> error(new base::ListValue());
-  error->AppendString("noerror");
-  info->PostResult(error.Pass());
+  if (info.get()) {
+    scoped_ptr<base::ListValue> error(new base::ListValue());
+    error->AppendString("noerror");
+    info->PostResult(error.Pass());
+  }
 }
 
 void ScenePerceptionObject::OnReset(
@@ -412,6 +417,7 @@ void ScenePerceptionObject::OnDoMeshingUpdate() {
   pxcStatus status = sceneperception_controller_->DoMeshingUpdate(block_meshing_data_, meshing_update_info_);
   if (status == PXC_STATUS_NO_ERROR) {
     DLOG(INFO) << "Meshing succeeds";
+    
       MeshingEvent event;
 
 	float *vertices = block_meshing_data_->QueryVertices();
@@ -456,14 +462,18 @@ void ScenePerceptionObject::OnDoMeshingUpdate() {
   
   DispatchEvent("meshing", eventData.Pass());
   DLOG(INFO) << "Dispatch meshing event";
-  doing_meshing_updating_ = false;
+  
+    scenemanager_thread_.message_loop()->PostTask(
+        FROM_HERE,
+        base::Bind(&ScenePerceptionObject::OnMeshingResult,
+                   base::Unretained(this)));
   }
 }
 
 void ScenePerceptionObject::OnMeshingResult() {
   DCHECK_EQ(scenemanager_thread_.message_loop(), base::MessageLoop::current());
 
-
+  doing_meshing_updating_ = false;
 }
 
 }  // namespace sysapps
