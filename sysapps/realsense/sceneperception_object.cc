@@ -34,8 +34,6 @@ ScenePerceptionObject::ScenePerceptionObject() :
 	meshing_update_info_.countOfVeticesRequired = meshing_update_info_.verticesRequired = meshing_update_info_.countOfFacesRequired =
 	meshing_update_info_.facesRequired = meshing_update_info_.colorsRequired = 1;
   
-  extension_message_loop_ = base::MessageLoop::current();
-
   handler_.Register("start",
                     base::Bind(&ScenePerceptionObject::OnStart,
                                base::Unretained(this)));
@@ -95,12 +93,14 @@ void ScenePerceptionObject::OnStart(
   
   scenemanager_thread_.message_loop()->PostTask(
       FROM_HERE,
-      base::Bind(&ScenePerceptionObject::OnStartPipeline,
+      base::Bind(&ScenePerceptionObject::OnCreateAndStartPipeline,
                  base::Unretained(this),
                  base::Passed(&info)));
 }
 
-void ScenePerceptionObject::OnStartPipeline(scoped_ptr<XWalkExtensionFunctionInfo> info) {
+void ScenePerceptionObject::OnCreateAndStartPipeline(scoped_ptr<XWalkExtensionFunctionInfo> info) {
+  DCHECK_EQ(scenemanager_thread_.message_loop(), base::MessageLoop::current());
+
   if (state_ != IDLE) {
     scoped_ptr<base::ListValue> error(new base::ListValue());
 	  error->AppendString("state is not IDLE");
@@ -155,6 +155,8 @@ void ScenePerceptionObject::OnStartPipeline(scoped_ptr<XWalkExtensionFunctionInf
 }
 
 void ScenePerceptionObject::OnRunPipeline() {
+  DCHECK_EQ(scenemanager_thread_.message_loop(), base::MessageLoop::current());
+
   if (state_ == IDLE)
     return;
   
@@ -244,15 +246,23 @@ void ScenePerceptionObject::OnRunPipeline() {
 
 void ScenePerceptionObject::OnStop(
     scoped_ptr<XWalkExtensionFunctionInfo> info) {
+  if (!scenemanager_thread_.IsRunning()) {
+    scoped_ptr<base::ListValue> error(new base::ListValue());
+    error->AppendString("scenemanager thread is not running");
+    info->PostResult(error.Pass()); 
+    return;  // Wrong state.
+  }
   scenemanager_thread_.message_loop()->PostTask(
       FROM_HERE,
-      base::Bind(&ScenePerceptionObject::OnStopPipeline,
+      base::Bind(&ScenePerceptionObject::OnStopAndDestroyPipeline,
                  base::Unretained(this),
                  base::Passed(&info)));
   scenemanager_thread_.Stop();
 }
 
-void ScenePerceptionObject::OnStopPipeline(scoped_ptr<XWalkExtensionFunctionInfo> info) {
+void ScenePerceptionObject::OnStopAndDestroyPipeline(scoped_ptr<XWalkExtensionFunctionInfo> info) {
+  DCHECK_EQ(scenemanager_thread_.message_loop(), base::MessageLoop::current());
+
   if (state_ == IDLE) {
     scoped_ptr<base::ListValue> error(new base::ListValue());
     error->AppendString("state is IDLE");
@@ -278,6 +288,8 @@ void ScenePerceptionObject::OnReset(
 }
 
 void ScenePerceptionObject::OnResetScenePerception(scoped_ptr<XWalkExtensionFunctionInfo> info) {
+  DCHECK_EQ(scenemanager_thread_.message_loop(), base::MessageLoop::current());
+
   if (state_ == IDLE) {
     scoped_ptr<base::ListValue> error(new base::ListValue());
     error->AppendString("state is IDLE");
@@ -289,6 +301,8 @@ void ScenePerceptionObject::OnResetScenePerception(scoped_ptr<XWalkExtensionFunc
 }
 
 void ScenePerceptionObject::OnPauseScenePerception(bool pause, scoped_ptr<XWalkExtensionFunctionInfo> info) {
+  DCHECK_EQ(scenemanager_thread_.message_loop(), base::MessageLoop::current());
+
   if (!pause) {
     if (state_ != CHECKING) {
       scoped_ptr<base::ListValue> error(new base::ListValue());
@@ -333,6 +347,8 @@ void ScenePerceptionObject::OnDisableTracking(
 }
 
 void ScenePerceptionObject::OnEnableReconstruction(bool enable, scoped_ptr<XWalkExtensionFunctionInfo> info) {
+  DCHECK_EQ(scenemanager_thread_.message_loop(), base::MessageLoop::current());
+
   if (enable) {
     if (state_ != TRACKING) {
       scoped_ptr<base::ListValue> error(new base::ListValue());
@@ -390,31 +406,13 @@ void ScenePerceptionObject::OnDisableMeshing(
                  base::Passed(&info)));
 }
 
-pxcStatus ScenePerceptionObject::OnNewSample(
-    pxcUID mid, PXCCapture::Sample* sample) {
-  return PXC_STATUS_NO_ERROR;
-}
-
-pxcStatus ScenePerceptionObject::OnModuleProcessedFrame(
-    pxcUID mid, PXCBase* module, PXCCapture::Sample* sample) {
-  return PXC_STATUS_NO_ERROR;
-}
-
 void ScenePerceptionObject::OnDoMeshingUpdate() {
   DCHECK_EQ(meshing_thread_.message_loop(), base::MessageLoop::current());
   DLOG(INFO) << "Meshing starts";
   pxcStatus status = sceneperception_controller_->DoMeshingUpdate(block_meshing_data_, meshing_update_info_);
   if (status == PXC_STATUS_NO_ERROR) {
     DLOG(INFO) << "Meshing succeeds";
-     extension_message_loop_->PostTask(
-         FROM_HERE,
-         base::Bind(&ScenePerceptionObject::OnMeshingResult,
-                    base::Unretained(this)));
-  }
-}
-
-void ScenePerceptionObject::OnMeshingResult() {
-  MeshingEvent event;
+      MeshingEvent event;
 
 	float *vertices = block_meshing_data_->QueryVertices();
   int num_of_vertices = block_meshing_data_->QueryNumberOfVertices();
@@ -459,26 +457,13 @@ void ScenePerceptionObject::OnMeshingResult() {
   DispatchEvent("meshing", eventData.Pass());
   DLOG(INFO) << "Dispatch meshing event";
   doing_meshing_updating_ = false;
+  }
 }
 
-void ScenePerceptionObject::OnStatus(pxcUID mid, pxcStatus status) {
-  if (mid == PXCScenePerception::CUID && status < PXC_STATUS_NO_ERROR) {
-    ErrorEvent event;
-    std::ostringstream status_str;
-    status_str << status;
-    event.status = status_str.str();
+void ScenePerceptionObject::OnMeshingResult() {
+  DCHECK_EQ(scenemanager_thread_.message_loop(), base::MessageLoop::current());
 
-    scoped_ptr<base::ListValue> eventData(new base::ListValue);
-    eventData->Append(event.ToValue().release());
 
-    DispatchEvent("error", eventData.Pass());
-    
-    sceneperception_controller_.reset();
-    state_ = IDLE;
-
-    return;
-  }
-  return;
 }
 
 }  // namespace sysapps

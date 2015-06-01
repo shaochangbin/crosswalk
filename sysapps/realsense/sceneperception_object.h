@@ -20,8 +20,7 @@ namespace xwalk {
 namespace sysapps {
 
 class ScenePerceptionObject :
-    public EventTarget,
-    public PXCSenseManager::Handler {
+    public EventTarget {
  public:
   ScenePerceptionObject();
   ~ScenePerceptionObject() override;
@@ -29,11 +28,6 @@ class ScenePerceptionObject :
   // EventTarget implementation.
   void StartEvent(const std::string& type) override;
   void StopEvent(const std::string& type) override;
-  
-  // PXCSenseManager::Handler implementation.
-  virtual pxcStatus PXCAPI OnNewSample(pxcUID mid, PXCCapture::Sample* sample);
-  virtual pxcStatus PXCAPI OnModuleProcessedFrame(pxcUID mid, PXCBase* module, PXCCapture::Sample* sample);
-  virtual void PXCAPI OnStatus(pxcUID mid, pxcStatus status);
 
  private:
   void OnStart(scoped_ptr<XWalkExtensionFunctionInfo> info);
@@ -45,8 +39,8 @@ class ScenePerceptionObject :
   void OnDisableMeshing(scoped_ptr<XWalkExtensionFunctionInfo> info);
   
   // Run on scenemanager_thread_;
-  void OnStartPipeline(scoped_ptr<XWalkExtensionFunctionInfo> info);
-  void OnStopPipeline(scoped_ptr<XWalkExtensionFunctionInfo> info);
+  void OnCreateAndStartPipeline(scoped_ptr<XWalkExtensionFunctionInfo> info);
+  void OnStopAndDestroyPipeline(scoped_ptr<XWalkExtensionFunctionInfo> info);
   void OnRunPipeline();
   void OnResetScenePerception(scoped_ptr<XWalkExtensionFunctionInfo> info);
   void OnPauseScenePerception(bool pause, scoped_ptr<XWalkExtensionFunctionInfo> info);
@@ -72,7 +66,6 @@ class ScenePerceptionObject :
   bool doing_meshing_updating_;
   base::Thread scenemanager_thread_;
   base::Thread meshing_thread_;
-  base::MessageLoop* extension_message_loop_;
 
   scoped_ptr<ScenePerceptionController> sceneperception_controller_;
   
