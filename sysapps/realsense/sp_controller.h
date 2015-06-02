@@ -23,7 +23,7 @@ class IScenePerceptionMeshFetcher
 public:
 	IScenePerceptionMeshFetcher() {}
 	virtual pxcStatus DoMeshingUpdate(PXCBlockMeshingData *blockMeshingData, PXCScenePerception::MeshingUpdateInfo  &meshingUpdateInfo) = 0;
-	virtual PXCBlockMeshingData* CreatePXCBlockMeshingData() = 0;
+	virtual PXCBlockMeshingData* CreatePXCBlockMeshingData(const pxcI32 maxBlockMesh, const pxcI32 maxVertices, const pxcI32 maxFaces, const pxcBool bUseColor) = 0;
 	virtual ~IScenePerceptionMeshFetcher() {};
 };
 
@@ -172,12 +172,12 @@ class ScenePerceptionController : public IScenePerceptionMeshFetcher
 			return true;
 		}
 		
-		PXCBlockMeshingData* CreatePXCBlockMeshingData()
+		PXCBlockMeshingData* CreatePXCBlockMeshingData(const pxcI32 maxBlockMesh, const pxcI32 maxVertices, const pxcI32 maxFaces, const pxcBool bUseColor)
 		{
 			PXCBlockMeshingData* pBlockMeshingData = NULL;
 			if(m_pScenePerception)
 			{			
-				pBlockMeshingData  = m_pScenePerception->CreatePXCBlockMeshingData();
+				pBlockMeshingData  = m_pScenePerception->CreatePXCBlockMeshingData(maxBlockMesh, maxVertices, maxFaces, bUseColor);
 			}
 			return pBlockMeshingData;
 		}

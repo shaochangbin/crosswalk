@@ -46,9 +46,7 @@
 
 	sp.ontracking = function(e) {
 		accuracyElement.innerHTML = 'Accuracy: ' + e.data.accuracy;
-		if (e.data.accuracy == 'low' || e.data.accuracy == 'failed')
-			return;
-		updateCameraPose(e.data.cameraPose);
+		updateCameraPose(e.data.cameraPose, e.data.accuracy);
 	};
 	sp.onmeshing = function(e) {
 		console.log(e.data);
@@ -93,6 +91,7 @@
 		sp.disableTracking().then(function(e) {
 			console.log(e);
 			accuracyElement.innerHTML = 'Accuracy: ';
+			showCamera(false);
 		});
 	};
 	
@@ -109,6 +108,7 @@
 	function mergeMeshes() {
 		if (blockMeshMap.length == 0)
 			return;
+		console.time("mergeMeshes");
 		totalMaterials = [];
     	totalGeom = new THREE.Geometry();
 		for (var id in blockMeshMap) {
@@ -125,6 +125,7 @@
 		totalMesh = new THREE.Mesh(totalGeom, new THREE.MeshFaceMaterial(totalMaterials));
     	scene.add(totalMesh);
 		timeout = null;
+		console.timeEnd("mergeMeshes");
 	};
 
 	
@@ -187,28 +188,36 @@
     }
 	
 	function poseMultiplyVect(out, pose, vect) {
-		out.x = pose.elements[0]*vect.x + pose.elements[1]*vect.y + pose.elements[2]*vect.z + pose.elements[3]*vect.w;
-		out.y = pose.elements[4]*vect.x + pose.elements[5]*vect.y + pose.elements[6]*vect.z + pose.elements[7]*vect.w;
-		out.z = pose.elements[8]*vect.x + pose.elements[9]*vect.y + pose.elements[10]*vect.z + pose.elements[11]*vect.w;
+		out.x = pose[0]*vect.x + pose[1]*vect.y + pose[2]*vect.z + pose[3]*vect.w;
+		out.y = pose[4]*vect.x + pose[5]*vect.y + pose[6]*vect.z + pose[7]*vect.w;
+		out.z = pose[8]*vect.x + pose[9]*vect.y + pose[10]*vect.z + pose[11]*vect.w;
 		out.w = vect.w;
 	}
 	
-	function updateCameraPose(cameraPoseArray) {
-		var cameraPose = new THREE.Matrix4();
-		cameraPose.set(cameraPoseArray[0], cameraPoseArray[1], cameraPoseArray[2], cameraPoseArray[3],
-		               cameraPoseArray[4], cameraPoseArray[5], cameraPoseArray[6], cameraPoseArray[7],
-					   cameraPoseArray[8], cameraPoseArray[9], cameraPoseArray[10], cameraPoseArray[11],
-					   0, 0, 0, 0);
-		var cameraCenter = new THREE.Vector3(cameraPose[3], cameraPose[7], cameraPose[11]);
+	function showCamera(show) {
+		x_axis.material.visible = show;
+		y_axis.material.visible = show;
+		z_axis.material.visible = show;
+	}
+	
+	function updateCameraPose(cameraPoseArray, accuracy) {
+		if (accuracy == 'low' || accuracy == 'failed') {
+			showCamera(false);
+			return;
+		} else {
+			showCamera(true);
+		}
+		cameraPoseArray[7] = -cameraPoseArray[7];
+		var cameraCenter = new THREE.Vector3(cameraPoseArray[3], cameraPoseArray[7], cameraPoseArray[11]);
 		var cameraXAxis = new THREE.Vector4(0, 0, 0, 0);
 		var xVect = new THREE.Vector4(0.16, 0.0, 0.0, 1.0);
-		poseMultiplyVect(cameraXAxis, cameraPose, xVect);
+		poseMultiplyVect(cameraXAxis, cameraPoseArray, xVect);
 		var cameraYAxis = new THREE.Vector4(0, 0, 0, 0);
 		var yVect = new THREE.Vector4(0.0, 0.16, 0.0, 1.0);
-		poseMultiplyVect(cameraYAxis, cameraPose, yVect);
+		poseMultiplyVect(cameraYAxis, cameraPoseArray, yVect);
 		var cameraZAxis = new THREE.Vector4(0, 0, 0, 0);
 		var zVect = new THREE.Vector4(0.0, 0.0, 0.16, 1.0);
-		poseMultiplyVect(cameraZAxis, cameraPose, zVect);
+		poseMultiplyVect(cameraZAxis, cameraPoseArray, zVect);
 		
 		z_axis.geometry.dynamic = true;
 		z_axis.geometry.vertices[0] = cameraCenter;

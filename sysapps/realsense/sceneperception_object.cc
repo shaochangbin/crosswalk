@@ -126,7 +126,15 @@ void ScenePerceptionObject::OnCreateAndStartPipeline(scoped_ptr<XWalkExtensionFu
   sceneperception_controller_->PauseScenePerception(true);
   sceneperception_controller_->EnableReconstruction(false);
   
-  block_meshing_data_ = sceneperception_controller_->CreatePXCBlockMeshingData();
+  // default
+  // MaxNumberOfBlockMeshes: 16384
+  // MaxNumberOfFaces: 2621440
+  // MaxNumberOfVertices: 7864320
+  block_meshing_data_ = sceneperception_controller_->CreatePXCBlockMeshingData(1000, 7864320, 2621440, 1);
+  
+  DLOG(INFO) << "MaxNumberOfBlockMeshes: " << block_meshing_data_->QueryMaxNumberOfBlockMeshes();
+  DLOG(INFO) << "MaxNumberOfFaces: " << block_meshing_data_->QueryMaxNumberOfFaces();
+  DLOG(INFO) << "MaxNumberOfVertices: " << block_meshing_data_->QueryMaxNumberOfVertices();
 	
   if(!sceneperception_controller_->InitPipeline(0)) {
 	  scoped_ptr<base::ListValue> error(new base::ListValue());
