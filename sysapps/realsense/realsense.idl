@@ -17,5 +17,6 @@ namespace realsense {
 
     [nodoc] static RealSense realSenseConstructor(DOMString objectId);
     [nodoc] static ScenePerception ScenePerceptionConstructor(DOMString objectId);
+    [nodoc] static Scan3D Scan3DConstructor(DOMString objectId);
   };
 };

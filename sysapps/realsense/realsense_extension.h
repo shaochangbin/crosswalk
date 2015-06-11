@@ -42,6 +42,8 @@ class RealSenseInstance : public XWalkExtensionInstance {
       scoped_ptr<XWalkExtensionFunctionInfo> info);
   void OnScenePerceptionConstructor(
       scoped_ptr<XWalkExtensionFunctionInfo> info);
+  void OnScan3DConstructor(
+      scoped_ptr<XWalkExtensionFunctionInfo> info);
 
   XWalkExtensionFunctionHandler handler_;
   BindingObjectStore store_;

@@ -1,0 +1,49 @@
+// Copyright (c) 2015 Intel Corporation. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace scan3d {  
+  enum FileFormat {
+    obj,
+    ply,
+    stl
+  };
+
+  enum ScanningMode {
+    VIRIABLE,
+    OBJECT_ON_PLANAR_SURFACE_DETECTION,
+    FACE,
+    HEAD,
+    BODY
+  };
+
+  enum ReconstructionOption {
+    SOLIDIFICATION,
+    TEXTURE
+  };
+
+  dictionary ErrorEvent {
+    DOMString status;
+  };
+
+  dictionary Configuration {
+    double minFrameBeforeScanStart;
+    ScanningMode mode;
+    ReconstructionOption option;
+  };
+
+  interface Events {
+    static void onerror();
+  };
+
+  callback Promise = void (DOMString error);
+
+  interface Functions {
+    static void start(Promise promise);
+    static void stop(Promise promise);
+    static void reset(Promise promise);
+
+    static void setConfiguration(Configuration configuration);
+  };
+
+};
