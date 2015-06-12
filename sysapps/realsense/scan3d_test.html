@@ -1,0 +1,37 @@
+<html>
+  <head>
+    <title>ScenePerception Test</title>
+  </head>
+  <body>
+    <p id='quality'>Quality: </p>
+	<p id='accuracy'>Accuracy: </p>
+	<div style='margin-bottom:23px;'>
+		<button id='start'>Start</button>
+		<button id='stop'>Stop</button>
+		<button id='reset'>Reset</button>
+	</div>
+	<div id='canvas'>
+	</div>
+  </body>
+  <script>
+	var startButton = document.getElementById('start');
+	var resetButton = document.getElementById('reset');
+	var stopButton = document.getElementById('stop');
+	
+	var sc = new xwalk.experimental.realsense.Scan();
+	
+	startButton.onclick = function(e) {
+		sc.start().then(function(e) {console.log(e);});
+	};
+	
+	resetButton.onclick = function(e) {
+		sc.reset().then(function(e) {console.log(e);});
+	};
+	
+	stopButton.onclick = function(e) {
+		sc.stop().then(function(e) {
+			console.log(e);
+		});
+	};
+  </script>
+</html>
