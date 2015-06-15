@@ -58,6 +58,7 @@ class ScenePerceptionObject :
     TRACKING,
     MESHING,
   };
+
   State state_;
   
   bool on_checking_;

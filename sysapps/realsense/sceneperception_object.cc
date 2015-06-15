@@ -135,6 +135,7 @@ void ScenePerceptionObject::OnCreateAndStartPipeline(scoped_ptr<XWalkExtensionFu
   DLOG(INFO) << "MaxNumberOfBlockMeshes: " << block_meshing_data_->QueryMaxNumberOfBlockMeshes();
   DLOG(INFO) << "MaxNumberOfFaces: " << block_meshing_data_->QueryMaxNumberOfFaces();
   DLOG(INFO) << "MaxNumberOfVertices: " << block_meshing_data_->QueryMaxNumberOfVertices();
+
 	
   if(!sceneperception_controller_->InitPipeline(0)) {
 	  scoped_ptr<base::ListValue> error(new base::ListValue());
