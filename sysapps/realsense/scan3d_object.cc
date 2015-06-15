@@ -7,6 +7,8 @@
 #include "base/bind.h"
 #include "base/logging.h"
 #include "xwalk/sysapps/realsense/scan3d.h"
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
 
 #include <string>
 #include <sstream>
@@ -43,6 +45,7 @@ void Scan3DObject::StopEvent(const std::string& type) {
 
 void Scan3DObject::OnStart(
     scoped_ptr<XWalkExtensionFunctionInfo> info) {
+  LOG(INFO) << "-----" << __FUNCTION__;
   if (scenemanager_thread_.IsRunning()) {
     scoped_ptr<base::ListValue> error(new base::ListValue());
     error->AppendString("scenemanager thread is running");
@@ -60,7 +63,16 @@ void Scan3DObject::OnStart(
 
 void Scan3DObject::OnCreateAndStartPipeline(scoped_ptr<XWalkExtensionFunctionInfo> info) {
   DCHECK_EQ(scenemanager_thread_.message_loop(), base::MessageLoop::current());
-  scoped_ptr<base::ListValue> error(new base::ListValue());
+
+  LOG(INFO) << "-----" << __FUNCTION__;
+  const base::FilePath path(FILE_PATH_LITERAL("filename.txt"));
+  FILE* file = OpenFile(path, "wb");
+  if (!file) {
+    LOG(ERROR) << "Couldn't open '" << path.AsUTF8Unsafe()
+                << "' for writing";
+  }
+
+ scoped_ptr<base::ListValue> error(new base::ListValue());
   error->AppendString("noerror");
   info->PostResult(error.Pass());
 }

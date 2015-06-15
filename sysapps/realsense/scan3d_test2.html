@@ -1,10 +1,9 @@
 <html>
   <head>
-    <title>ScenePerception Test</title>
+    <title>Scan3D Test</title>
   </head>
   <body>
-    <p id='quality'>Quality: </p>
-	<p id='accuracy'>Accuracy: </p>
+  <p id='quality'>Quality: </p>
 	<div style='margin-bottom:23px;'>
 		<button id='start'>Start</button>
 		<button id='stop'>Stop</button>
@@ -14,11 +13,12 @@
 	</div>
   </body>
   <script>
+  // this is testing Scan3D APIs.
 	var startButton = document.getElementById('start');
 	var resetButton = document.getElementById('reset');
 	var stopButton = document.getElementById('stop');
 	
-	var sc = new xwalk.experimental.realsense.Scan();
+	var sc = new xwalk.experimental.realsense.Scan3D();
 	
 	startButton.onclick = function(e) {
 		sc.start().then(function(e) {console.log(e);});

@@ -56,7 +56,7 @@ var Scan3D = function() {
   this._addMethodWithPromise("stop", Promise);
   this._addMethodWithPromise("reset", Promise);
   
-  this._addMethod("setConfiguration", false);
+  //this._addMethod("setConfiguration", false);
   this._addEvent("error");
   //this._addEvent("meshing");
 };

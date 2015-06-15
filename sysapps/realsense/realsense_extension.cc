@@ -8,8 +8,8 @@
 #include "ui/base/resource/resource_bundle.h"
 #include "xwalk/sysapps/realsense/realsense.h"
 #include "xwalk/sysapps/realsense/realsense_object.h"
-#include "xwalk/sysapps/realsense/sceneperception_object.h"
 #include "xwalk/sysapps/realsense/scan3d_object.h"
+#include "xwalk/sysapps/realsense/sceneperception_object.h"
 
 namespace xwalk {
 namespace sysapps {
@@ -31,6 +31,7 @@ XWalkExtensionInstance* RealSenseExtension::CreateInstance() {
 RealSenseInstance::RealSenseInstance()
   : handler_(this),
     store_(&handler_) {
+  LOG(INFO) << "---" <<__FUNCTION__;
   handler_.Register("realsenseConstructor",
       base::Bind(&RealSenseInstance::OnRealSenseConstructor,
                  base::Unretained(this)));
@@ -56,6 +57,7 @@ void RealSenseInstance::OnRealSenseConstructor(
 
 void RealSenseInstance::OnScenePerceptionConstructor(
     scoped_ptr<XWalkExtensionFunctionInfo> info) {
+  LOG(INFO) << "---RealSenseInstance::OnScenePerceptionConstructor";
   scoped_ptr<Params> params(Params::Create(*info->arguments()));
 
   scoped_ptr<BindingObject> obj(new ScenePerceptionObject());
@@ -64,6 +66,7 @@ void RealSenseInstance::OnScenePerceptionConstructor(
 
 void RealSenseInstance::OnScan3DConstructor(
     scoped_ptr<XWalkExtensionFunctionInfo> info) {
+  LOG(INFO) << "---RealSenseInstance::OnScan3DConstructor";
   scoped_ptr<Params> params(Params::Create(*info->arguments()));
 
   scoped_ptr<BindingObject> obj(new Scan3DObject());
