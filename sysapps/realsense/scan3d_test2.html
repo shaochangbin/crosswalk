@@ -5,6 +5,7 @@
   <body>
   <p id='quality'>Quality: </p>
 	<div style='margin-bottom:23px;'>
+		<button id='setConfig'>SetConfig</button>
 		<button id='start'>Start</button>
 		<button id='stop'>Stop</button>
 		<button id='reset'>Reset</button>
@@ -14,12 +15,22 @@
   </body>
   <script>
   // this is testing Scan3D APIs.
+	var configureButton = document.getElementById('setConfig');
 	var startButton = document.getElementById('start');
 	var resetButton = document.getElementById('reset');
 	var stopButton = document.getElementById('stop');
 	
 	var sc = new xwalk.experimental.realsense.Scan3D();
 	
+	configureButton.onclick = function(e) {
+    sc.setConfiguration({
+      fileFormat: "obj", 
+      scanningMode:"face", 
+      reconstructionOptions:"none", 
+      minFramesBeforeScanStart: 75
+    });
+	};
+
 	startButton.onclick = function(e) {
 		sc.start().then(function(e) {console.log(e);});
 	};

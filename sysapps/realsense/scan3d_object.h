@@ -29,6 +29,14 @@ class Scan3DObject :
   void StopEvent(const std::string& type) override;
 
  private:
+  struct Scan3DConfiguration {
+    PXC3DScan::FileFormat file_format;
+    // |config| includes |scanningMode|, |reconstructionOptions| and 
+    // |minFramesBeforeScanStart|.
+    PXC3DScan::Configuration config;
+    int scan_frames;
+    //std::string output_path;
+  };
   void OnStart(scoped_ptr<XWalkExtensionFunctionInfo> info);
   void OnStop(scoped_ptr<XWalkExtensionFunctionInfo> info);
   void OnReset(scoped_ptr<XWalkExtensionFunctionInfo> info);
@@ -39,15 +47,19 @@ class Scan3DObject :
   void OnStopAndDestroyPipeline(scoped_ptr<XWalkExtensionFunctionInfo> info);
   void OnResetScan3DObject(scoped_ptr<XWalkExtensionFunctionInfo> info);
   void OnRunPipeline();
+
+  void SetDefaultConfiguration();
+  Scan3DConfiguration GetConfiguration() { return configuration_; }
   
   base::Thread scenemanager_thread_;
   PXCSenseManager* sense_manager_;
   PXC3DScan* scanner_;
+  Scan3DConfiguration configuration_;
+  /*
   PXC3DScan::FileFormat file_format_;
-  //PXC3DScan::ScanningMode scanning_mode_;
-  //PXC3DScan::ReconstructionOption reconstruct_option_;
   PXC3DScan::Configuration configuration_;
   int scanning_frames_;
+  */
 };
 
 }  // namespace sysapps

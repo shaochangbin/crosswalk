@@ -10,14 +10,16 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 
-#include <string>
+#include <algorithm>
 #include <sstream>
+#include <string>
 
 namespace xwalk {
 namespace sysapps {
 
 using namespace jsapi::scan3d; // NOLINT
-const int kDefaultScanningFrames = 100;
+
+const int kDefaultScanningFrames = 200;
 const int kDefaultFramesBeforeScanStart = 100;
 
 namespace {
@@ -35,18 +37,71 @@ void PrintReconstructMessage(pxcStatus result) {
   }
 }
 
+PXC3DScan::FileFormat ToPxc3DFileFormat(const std::string& str) {
+  const struct {
+    const std::string str;
+    PXC3DScan::FileFormat format;
+  } kFileFormats [] = {
+    { "obj", PXC3DScan::OBJ },
+    { "ply", PXC3DScan::PLY },
+    { "stl", PXC3DScan::STL }
+  };
+  for (const auto& iter : kFileFormats) {
+    std::string lower = str;
+    std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+    if (lower == iter.str)
+      return iter.format;
+  }
+  return PXC3DScan::OBJ;
+}
+
+PXC3DScan::ScanningMode ToPxc3DScanningMode(const std::string& str) {
+  const struct {
+    const std::string str;
+    PXC3DScan::ScanningMode mode;
+  } kModes [] = {
+    { "variable", PXC3DScan::VARIABLE },
+    { "object_on_planar_surface_detection",
+      PXC3DScan::OBJECT_ON_PLANAR_SURFACE_DETECTION },
+    { "face", PXC3DScan::FACE },
+    { "head", PXC3DScan::HEAD },
+    { "body", PXC3DScan::BODY },
+  };
+  for (const auto& iter : kModes) {
+    std::string lower = str;
+    std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+    if (lower == iter.str)
+      return iter.mode;
+  }
+  return PXC3DScan::FACE;
+}
+
+PXC3DScan::ReconstructionOption 
+ToPxc3DReconstructionOptions(const std::string& str) {
+  const struct {
+    const std::string str;
+    PXC3DScan::ReconstructionOption option;
+  } kOptions [] = {
+    { "none", PXC3DScan::NONE },
+    { "solidification", PXC3DScan::SOLIDIFICATION },
+    { "texture", PXC3DScan::TEXTURE }
+  };
+  for (const auto& iter : kOptions) {
+    std::string lower = str;
+    std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+    if (lower == iter.str)
+      return iter.option;
+  }
+  return PXC3DScan::NONE;
+}
+
 }  // namespace
 
 Scan3DObject::Scan3DObject() :
     sense_manager_(PXCSenseManager::CreateInstance()),
-    scanning_frames_(kDefaultScanningFrames),
-    file_format_(PXC3DScan::OBJ),
     scenemanager_thread_("SceneManagerThread") {
-  // TODO(changbin): expose these configurations to JS.
-  configuration_.minFramesBeforeScanStart = kDefaultFramesBeforeScanStart;
-  configuration_.mode = PXC3DScan::FACE;
-  configuration_.options = PXC3DScan::NONE | PXC3DScan::SOLIDIFICATION;
-
+  SetDefaultConfiguration();
+ 
   handler_.Register("start",
                     base::Bind(&Scan3DObject::OnStart,
                                base::Unretained(this)));
@@ -105,7 +160,6 @@ void Scan3DObject::OnCreateAndStartPipeline(scoped_ptr<XWalkExtensionFunctionInf
     LOG(ERROR) << "Init reuturned: " << result << ", please check your camera."; 
     return;
   }
-  // Why use query 2D scanner rather than 3D scanner?
   scanner_ = sense_manager_->Query3DScan();
   if (!scanner_) {
     LOG(ERROR) << "3D scanner is unavailable. "; 
@@ -113,12 +167,15 @@ void Scan3DObject::OnCreateAndStartPipeline(scoped_ptr<XWalkExtensionFunctionInf
   }
 
   // Configure the system according to the provided arguments.
-  //PXC3DScan::Configuration config = scanner_->QueryConfiguration();
-  //config = configuration_;
-  //result = scanner_->SetConfiguration(config);
-  result = scanner_->SetConfiguration(configuration_);
+  PXC3DScan::Configuration config = scanner_->QueryConfiguration();
+  // Must set the parameters separately.
+  config.mode = configuration_.config.mode;
+  config.options = configuration_.config.options;
+  config.minFramesBeforeScanStart = configuration_.config.minFramesBeforeScanStart;
+  result = scanner_->SetConfiguration(config);
   if (result != PXC_STATUS_NO_ERROR) {
     LOG(ERROR) << "Set configuration failed: " << result; 
+    return;
   }
 
   sense_manager_->QueryCaptureManager()->QueryDevice()
@@ -141,11 +198,11 @@ void Scan3DObject::OnRunPipeline() {
   }
 
   int first_scan_frame = 0;
-  while (scanning_frames_) {
+  while (configuration_.scan_frames) {
     if (sense_manager_->AcquireFrame(true) < PXC_STATUS_NO_ERROR)
       break;
     if (scanner_->IsScanning()) {
-      scanning_frames_--;
+      configuration_.scan_frames--;
       if (!first_scan_frame) {
         first_scan_frame++;
         sense_manager_->QueryCaptureManager()->QueryDevice()
@@ -183,6 +240,9 @@ void Scan3DObject::OnStop(
     info->PostResult(error.Pass()); 
     return;  // Wrong state.
   }
+
+  SetDefaultConfiguration();
+
   scenemanager_thread_.message_loop()->PostTask(
       FROM_HERE,
       base::Bind(&Scan3DObject::OnStopAndDestroyPipeline,
@@ -212,11 +272,34 @@ void Scan3DObject::OnReset(
 
 void Scan3DObject::OnResetScan3DObject(scoped_ptr<XWalkExtensionFunctionInfo> info) {
   DCHECK_EQ(scenemanager_thread_.message_loop(), base::MessageLoop::current());
-  // TODO
+  SetDefaultConfiguration();
 }
 
 void Scan3DObject::OnSetConfiguration(scoped_ptr<XWalkExtensionFunctionInfo> info) {
-  // TODO
+  scoped_ptr<SetConfiguration::Params> 
+        params(SetConfiguration::Params::Create(*info->arguments()));
+  if (!params) {
+    LOG(WARNING) << "Malformed parameters passed to " << info->name();
+    return;
+  }
+  LOG(INFO) << "set fileFormat:" << params->configuration.file_format;
+  LOG(INFO) << "set scanningMode:" << params->configuration.scanning_mode;
+  LOG(INFO) << "set reconstructionOption:" << params->configuration.reconstruction_options;
+  LOG(INFO) << "set minFramesBeforeScanStart:" << params->configuration.min_frames_before_scan_start;
+
+  configuration_.file_format = ToPxc3DFileFormat(params->configuration.file_format);
+  configuration_.config.mode = ToPxc3DScanningMode(params->configuration.scanning_mode);
+  configuration_.config.options = ToPxc3DReconstructionOptions(params->configuration.reconstruction_options);
+  configuration_.config.minFramesBeforeScanStart = params->configuration.min_frames_before_scan_start;
+}
+
+void Scan3DObject::SetDefaultConfiguration() {
+  configuration_.file_format = PXC3DScan::OBJ;
+  configuration_.scan_frames = kDefaultScanningFrames;
+  configuration_.config.mode = PXC3DScan::FACE;
+  //configuration_.config.options = PXC3DScan::NONE | PXC3DScan::SOLIDIFICATION;
+  configuration_.config.options = PXC3DScan::NONE;
+  configuration_.config.minFramesBeforeScanStart = kDefaultFramesBeforeScanStart;
 }
 
 }  // namespace sysapps
