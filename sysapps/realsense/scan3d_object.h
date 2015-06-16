@@ -29,25 +29,6 @@ class Scan3DObject :
   void StopEvent(const std::string& type) override;
 
  private:
-  enum FileFormat {
-    FILE_OBJ,
-    FILE_PLY,
-    FILE_STL
-  };
-
-  enum ScanningMode {
-    SCAN_VARIABLE,
-    SCAN_OBJECT_ON_PLANAR_SURFACE_DETECTION,
-    SCAN_FACE,
-    SCAN_HEAD,
-    SCAN_BODY
-  };
-
-  enum ReconstructionOption {
-    SOLIDIFICATION,
-    TEXTURE
-  };
-
   void OnStart(scoped_ptr<XWalkExtensionFunctionInfo> info);
   void OnStop(scoped_ptr<XWalkExtensionFunctionInfo> info);
   void OnReset(scoped_ptr<XWalkExtensionFunctionInfo> info);
@@ -62,9 +43,10 @@ class Scan3DObject :
   base::Thread scenemanager_thread_;
   PXCSenseManager* sense_manager_;
   PXC3DScan* scanner_;
-  FileFormat file_format_;
-  ScanningMode scanning_mode_;
-  ReconstructionOption reconstruct_option_;
+  PXC3DScan::FileFormat file_format_;
+  //PXC3DScan::ScanningMode scanning_mode_;
+  //PXC3DScan::ReconstructionOption reconstruct_option_;
+  PXC3DScan::Configuration configuration_;
   int scanning_frames_;
 };
 

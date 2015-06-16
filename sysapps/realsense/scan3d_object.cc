@@ -17,6 +17,8 @@ namespace xwalk {
 namespace sysapps {
 
 using namespace jsapi::scan3d; // NOLINT
+const int kDefaultScanningFrames = 100;
+const int kDefaultFramesBeforeScanStart = 100;
 
 namespace {
 
@@ -37,12 +39,13 @@ void PrintReconstructMessage(pxcStatus result) {
 
 Scan3DObject::Scan3DObject() :
     sense_manager_(PXCSenseManager::CreateInstance()),
-    scanning_frames_(100),
+    scanning_frames_(kDefaultScanningFrames),
+    file_format_(PXC3DScan::OBJ),
     scenemanager_thread_("SceneManagerThread") {
   // TODO(changbin): expose these configurations to JS.
-  file_format_ = FILE_OBJ;
-  scanning_mode_ = SCAN_FACE;
-  reconstruct_option_ = SOLIDIFICATION;
+  configuration_.minFramesBeforeScanStart = kDefaultFramesBeforeScanStart;
+  configuration_.mode = PXC3DScan::FACE;
+  configuration_.options = PXC3DScan::NONE | PXC3DScan::SOLIDIFICATION;
 
   handler_.Register("start",
                     base::Bind(&Scan3DObject::OnStart,
@@ -110,11 +113,10 @@ void Scan3DObject::OnCreateAndStartPipeline(scoped_ptr<XWalkExtensionFunctionInf
   }
 
   // Configure the system according to the provided arguments.
-  PXC3DScan::Configuration config = scanner_->QueryConfiguration();
-  config.mode = PXC3DScan::FACE;
-  config.options = config.options | PXC3DScan::SOLIDIFICATION;
-  config.minFramesBeforeScanStart = 10;
-  result = scanner_->SetConfiguration(config);
+  //PXC3DScan::Configuration config = scanner_->QueryConfiguration();
+  //config = configuration_;
+  //result = scanner_->SetConfiguration(config);
+  result = scanner_->SetConfiguration(configuration_);
   if (result != PXC_STATUS_NO_ERROR) {
     LOG(ERROR) << "Set configuration failed: " << result; 
   }
@@ -126,15 +128,6 @@ void Scan3DObject::OnCreateAndStartPipeline(scoped_ptr<XWalkExtensionFunctionInf
       FROM_HERE,
       base::Bind(&Scan3DObject::OnRunPipeline,
                  base::Unretained(this)));
-
-/*
-  const base::FilePath path(FILE_PATH_LITERAL("filename.txt"));
-  FILE* file = OpenFile(path, "wb");
-  if (!file) {
-    LOG(ERROR) << "Couldn't open '" << path.AsUTF8Unsafe()
-                << "' for writing";
-  }
-*/
   scoped_ptr<base::ListValue> error(new base::ListValue());
   error->AppendString("noerror");
   info->PostResult(error.Pass());
